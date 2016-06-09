@@ -1,0 +1,35 @@
+Study ID,"Cohort (Discovery, Validation)",Histology,Age (years),Sex,Smok.^,Pack-years,PD-L1*,Priors^^,Dose (mg/kg),Sched.**,PFS (mos),Event ^^^,Resp  ^^^^,Durable Clinical Benefit,Nonsyn. ,Smok. Sig. ^^^^^,Neoant. ,Total exonic
+SA9755,Valid,NSCLC NOS,63,F,Former,36,Weak,1,10,3,8.4,0,PR,DCB,1192,TH,576,1732
+HE3202,Disc,Adeno,63,F,Former,58,Strong,3,10,3,14.7,0,PR,DCB,746,TH,610,1011
+TU0428,Disc,Adeno,66,M,Current,48,Negative,0,10,3,2.1,1,POD,NDB,626,TH,446,992
+Y2087,Valid,Adeno,68,F,Never,0,Weak,5,10,3,8.3,1,SD,DCB,507,TL,358,914
+RI1933,Disc,Adeno,60,F,Former,21,Strong,1,10,3,16.6,0,PR,DCB,473,TH,228,622
+M4945,Valid,Adeno,66,M,Former,40,Unknown,3,10,2,14.6,0,PR,DCB,427,TH,300,685
+ZA6505,Valid,Adeno,76,F,Never,0,Negative,6,10,3,1.9,1,POD,NDB,378,TL,209,558
+CU9061,Valid,Squam,57,M,Former,39,Weak,1,2,3,4,0,SD,NR,368,TH,271,552
+CA9903,Disc,Adeno,57,M,Former,80,Strong,3,10,3,14.5,1,PR,DCB,324,TH,226,494
+KA3947,Disc,Adeno,64,F,Former,52.5,Strong,0,10,3,8.1,1,SD,DCB,302,TH,114,426
+SC0899,Disc,Adeno,64,F,Current,25,Weak,0,10,3,12.6,0,PR,DCB,296,TH,191,450
+MA7027,Disc,Adeno,56,M,Former,37.5,Weak,1,10,2,1.8,1,POD,NDB,292,TH,90,396
+FR9547,Valid,Adeno,65,F,Current,25,Strong,1,2,3,4.2,0,PR,NR,290,TH,208,441
+AL4602,Valid,Adeno,59,M,Former,34,Strong,0,10,3,8.4,0,SD,DCB,244,TH,148,341
+DI6359,Disc,Adeno,61,F,Current,60,Strong,6,10,3,9.8,0,PR,DCB,228,TH,215,326
+ZA6965,Valid,Adeno,57,F,Former,25,Strong,1,2,3,4.4,0,PR,NR,223,TH,111,342
+RH090935,Valid,Adeno,78,F,Former,60,Strong,0,10,3,10.4,0,PR,DCB,201,TL,135,305
+SB010944,Valid,Squam,68,M,Never,0,Unknown,2,10,3,27.3,0,PR,DCB,198,TL,80,316
+JB112852,Disc,Adeno,60,M,Never,0,Negative,5,10,2,3.3,1,POD,NDB,190,TL,118,341
+SC6470,Disc,Adeno,59,M,Current,15,Weak,0,10,2,8.3,1,SD,DCB,185,TH,100,292
+SR070761,Valid,Squam,51,F,Former,2.5,Negative,4,10,2,3.4,1,POD,NDB,184,TL,50,328
+GR4788,Disc,Squam,59,M,Current,45,Negative,0,10,2,1.9,1,POD,NDB,170,TH,51,255
+BL3403,Disc,Adeno,73,F,Former,43.75,Weak,1,10,2,6.5,1,SD,NDB,148,TL,99,261
+DM123062,Valid,Adeno,50,M,Never,0,Weak,6,10,2,1.9,1,POD,NDB,134,TL,99,209
+WA7899,Valid,Adeno,49,M,Never,0,Strong,2,10,3,1.9,1,POD,NDB,127,TL,58,190
+R7495,Valid,Adeno,63,M,Former,73.5,Weak,2,2,3,1.4,1,POD,NDB,122,TL,83,199
+LO3793,Valid,Adeno,62,F,Former,6,Weak,2,2,3,3.5,1,SD,NDB,109,TL,74,145
+RO3338,Disc,Adeno,71,M,Former,20,Weak,1,10,3,2.1,1,POD,NDB,106,TL,112,167
+LO5004,Valid,Adeno,56,F,Former,8,Weak,0,10,2,6.3,1,SD,NDB,79,TL,87,140
+GR0134,Valid,Adeno,80,M,Former,56,Negative,0,10,3,8.3,1,PR,DCB,56,TL,30,94
+NI9507,Valid,Adeno,41,F,Current,2.25,Weak,1,10,3,1.9,1,POD,NDB,35,TL,18,85
+AU5884,Disc,Adeno,64,M,Former,10,Weak,2,10,2,1.8,1,POD,NDB,34,TL,27,80
+VA1330,Disc,Adeno,71,F,Former,0.5,Unknown,1,10,3,4.1,1,SD,NDB,22,TL,11,88
+VA7859,Disc,Adeno,57,F,Former,3.15,Unknown,1,10,3,6.3,1,SD,NDB,11,TL,8,45
