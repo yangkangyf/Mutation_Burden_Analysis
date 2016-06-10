@@ -6,16 +6,16 @@ number_of_simulations = 10000
 # Discriminant number of mutation to perform the survival analysis
 mutation_discriminant = 100
 # Choose which data to analyse
-Van_Allen = F
+Van_Allen = T
 Snyder = T
-Rizvi = F
+Rizvi = T
+
 # Choose which test to perform
 burden_VS_survival = F
 burden_VS_benefit = F
 threshold_mutation = F
-survival_analysis = T
+survival_analysis = F
 permutation_tests = F
-
 #######################
 # Librairies and data #
 #######################
@@ -82,7 +82,7 @@ if (burden_VS_survival==T)
 {
 # Plot Survival against number of nonsynonymous mutations
 par(mfrow=c(1,1))
-namefile1 = paste("Survival_VS_Mutational_load_", which_data)
+namefile1 = paste("Survival_VS_Mutational_load_", which_data, ".jpg")
 jpeg(namefile1)
 plot( total_benefit$nonsynonymous, total_benefit$overall_survival, xlab= "Number of Nonsynonymous mutations",
      ylab= "Overall survival", col ="blue", pch = ".", cex = 5, main = which_data,      
@@ -96,10 +96,9 @@ legend("topright", # places a legend at the appropriate place
        lwd = c(1,1),
        cex=c(1,1),col=c("blue", "red")) # gives the legend lines the correct color and width
 dev.off()
-}
 
 # Same figure, but in log scale
-namefile1bis = paste("Survival_VS_Mutational_load_log", which_data)
+namefile1bis = paste("Survival_VS_Mutational_load_log", which_data, ".jpg")
 jpeg(namefile1bis)
 plot(log(total_benefit$nonsynonymous), log(total_benefit$overall_survival), xlab= "Number of Nonsynonymous mutations",
       ylab= "Overall survival", col ="blue", pch = ".", cex = 5, main = which_data,
@@ -122,7 +121,7 @@ if (burden_VS_benefit == T)
 {
 ### Plot number of nonsynonymous mutations against benefit
 par(mfrow=c(1,1))
-namefile2 = paste("Benefit_VS_MutationalLoad_", which_data)
+namefile2 = paste("Benefit_VS_MutationalLoad_", which_data, ".jpg")
 jpeg(namefile2)
 plot(sort(total_benefit$nonsynonymous), col = "blue", xlab = "Rank", 
      ylab = "Number of Nonsynonymous mutations", pch = ".",
@@ -143,18 +142,23 @@ dev.off()
 #####################
 if (survival_analysis == T)
 {
+  namefile2bis = paste("Survival_Anaysis_", which_data, ".jpg", ".jpg")
+  jpeg(namefile2bis)
+  over_string = paste(">", mutation_discriminant, " mutations")
+  under_string = paste("<", mutation_discriminant, " mutations")
   total_Mut_over = total[which(total$nonsynonymous > mutation_discriminant),] 
   mini.surv2 <- survfit(Surv(total_Mut_over$overall_survival , total_Mut_over$dead)~ 1, conf.type="none")
-  plot(mini.surv2, mark.time = T, col = "red")
+  plot(mini.surv2, mark.time = T, col = "red", main = which_data)
   # Survival in Discovery set with <= 100 mutations
   total_Mut_under = total[which(total$nonsynonymous <= mutation_discriminant),] 
   mini.surv2 <- survfit(Surv(total_Mut_under$overall_survival , total_Mut_under$dead)~ 1, conf.type="none")
   lines(mini.surv2, mark.time = T, col = "blue")
   legend("topright", # places a legend at the appropriate place 
-         c("Responders","Non-responders"), # puts text in the legend
+         c(under_string,over_string), # puts text in the legend
          pch = c(".","."), # gives the legend appropriate symbols (lines)
          lwd=c(2.5,2.5),col=c("blue", "red")) # gives the legend lines the correct color and width
-}
+  dev.off()
+  }
 
 
 ######################
@@ -176,7 +180,7 @@ for (i in min(total$nonsynonymous):max(total$nonsynonymous))
   list_pvalues[j] = pvalue
   j = j+1
 })
-namefile3 = paste("Pvalue_VS_MutationThreshold_", which_data)
+namefile3 = paste("Pvalue_VS_MutationThreshold_", which_data, ".jpg")
 jpeg(namefile3)
 plot(list_i, list_pvalues, pch = ".", col = 'purple', cex = 5, xlab = "Discriminant number of mutations",
      ylab = "p-values", main = which_data)
@@ -208,7 +212,7 @@ for (i in 1:number_of_simulations)
   list_W[j] = W
   j = j+1
 })
-namefile4 = paste("Permutation_Mann-Whitney_", which_data)
+namefile4 = paste("Permutation_Mann-Whitney_", which_data, ".jpg")
 jpeg(namefile4)
 h <- hist(list_W, breaks = number_of_simulations/50, main = which_data, xlab = "W statisitics", 
      xlim = c(min(list_W),max(real_W + real_W/20, max(list_W))))
@@ -240,7 +244,7 @@ try(
     list_Z[j] = Z
     j = j+1
   })
-namefile5 = paste("Permutation_Log-Rank_",which_data)
+namefile5 = paste("Permutation_Log-Rank_",which_data, ".jpg")
 jpeg(namefile5)
 h <- hist(list_Z, breaks = number_of_simulations/50, main = which_data, xlab = "Z statisitics", 
           xlim = c(min(list_Z),max(real_Z + real_Z/20, max(list_Z))))
@@ -255,4 +259,5 @@ legend("topright", # places a legend at the appropriate place
        c(pvalue), # puts text in the legend
        pch = c(".")) # gives the legend lines the correct color and width
 dev.off()
+}
 }
