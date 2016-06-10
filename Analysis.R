@@ -2,20 +2,22 @@
 # Adjustable parameters #
 #########################
 # Number of simulations for the permutation test
-number_of_simulations = 10000
+number_of_simulations = 100
 # Discriminant number of mutation to perform the survival analysis
 mutation_discriminant = 100
 # Choose which data to analyse
 Van_Allen = T
 Snyder = T
 Rizvi = T
-
 # Choose which test to perform
 burden_VS_survival = F
 burden_VS_benefit = F
 threshold_mutation = F
 survival_analysis = F
-permutation_tests = F
+permutation_tests_LR = F
+permutation_tests_MW = F
+permutation_tests_LR_multiple_mut = T
+
 #######################
 # Librairies and data #
 #######################
@@ -191,7 +193,7 @@ dev.off()
 #####################
 # Permutation Tests #
 #####################
-if (permutation_tests == T)
+if (permutation_tests_MW == T)
 {
 # Mann_Whitney (benefit vs no benefit)
 real_test <- wilcox.test(total_benefit$nonsynonymous, total_nobenefit$nonsynonymous)
@@ -227,7 +229,10 @@ legend("topright", # places a legend at the appropriate place
        c(pvalue), # puts text in the legend
        pch = c(".")) # gives the legend lines the correct color and width
 dev.off()
+}
 
+if (permutation_tests_LR == T)
+{
 # Log-rank (benefit vs no benefit)
 real_test <- survdiff(Surv(total$overall_survival, total$dead) ~ total$nonsynonymous > mutation_discriminant)
 real_Z <- as.numeric(as.character(((real_test$obs[1]-real_test$exp[1])^2)/real_test$exp[1] + ((real_test$obs[2]-real_test$exp[2])^2)/real_test$exp[2]))
@@ -259,5 +264,39 @@ legend("topright", # places a legend at the appropriate place
        c(pvalue), # puts text in the legend
        pch = c(".")) # gives the legend lines the correct color and width
 dev.off()
+}
+if (permutation_tests_LR_multiple_mut == T)
+{
+  pvalue_comp = vector()
+  mut_chosen_list = vector()
+  k = 0
+  for (mut_chosen in (min(total$nonsynonymous)):(max(total$nonsynonymous)))
+    {
+    real_test <- survdiff(Surv(total$overall_survival, total$dead) ~ total$nonsynonymous > mut_chosen)
+    real_Z <- as.numeric(as.character(((real_test$obs[1]-real_test$exp[1])^2)/real_test$exp[1] + ((real_test$obs[2]-real_test$exp[2])^2)/real_test$exp[2]))
+    list_i = list()
+    list_Z= vector()
+    j = 1
+    try(
+      for (i in 1:number_of_simulations)
+      {
+        overall_survival_shuffled = sample(total$overall_survival)
+        res <- survdiff(Surv(overall_survival_shuffled, total$dead) ~ total$nonsynonymous > mut_chosen)
+        Z = as.numeric(as.character(((res$obs[1]-res$exp[1]))/res$exp[1] + ((res$obs[2]-res$exp[2]))/res$exp[2]))
+        list_i[j] = i
+        list_Z[j] = Z
+        j = j+1
+      })
+    pvalue_comp[k] = length(which(list_Z > real_Z))/number_of_simulations
+    mut_chosen_list[k] = mut_chosen
+    k = k+1
+  }
+  namefile5 = paste("Permutation_Log-Rank_Multiple",which_data, ".jpg")
+  jpeg(namefile6)
+  plot(mut_chosen_list, pvalue_comp, xlim = c(min(total$nonsynonymous),max(total$nonsynonymous)), 
+       ylim = c(min(pvalue_comp), max(pvalue_comp)), pch = ".",
+       x_lab = "Discriminant number of mutations", ylab = "p_value")
+  lines(mut_chosen_list, pvalue_comp)
+  dev.off
 }
 }
