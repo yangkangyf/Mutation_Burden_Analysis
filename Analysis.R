@@ -2,21 +2,21 @@
 # Adjustable parameters #
 #########################
 # Number of simulations for the permutation test
-number_of_simulations = 100
+number_of_simulations = 10000
 # Discriminant number of mutation to perform the survival analysis
 mutation_discriminant = 100
 # Choose which data to analyse
-Van_Allen = T
+Van_Allen = F
 Snyder = T
-Rizvi = T
+Rizvi = F
 # Choose which test to perform
-burden_VS_survival = F
+burden_VS_survival = T
 burden_VS_benefit = F
 threshold_mutation = F
 survival_analysis = F
 permutation_tests_LR = F
 permutation_tests_MW = F
-permutation_tests_LR_multiple_mut = T
+permutation_tests_LR_multiple_mut = F
 
 #######################
 # Librairies and data #
@@ -24,7 +24,7 @@ permutation_tests_LR_multiple_mut = T
 # Load libraries
 library(survival)
 
-# Run tha analysis for selected data
+# Run the analysis for selected data
 selected_data = list()
 if (Van_Allen == T)
   selected_data[length(selected_data)+1]="Van_Allen"
@@ -71,11 +71,17 @@ total$group <- total$Benefit
 clinical_benefit_str <- "1"
 clinical_nobenefit_str <- "0"
 total$dead <- total$Alive_at_time_of_censure
+eightpatient <- rbind(total[48,],total[22,],total[23,],total[24,],
+                      total[25,],total[13,],total[14,],total[15,])
 }
   
 total_benefit = total[which(total$group == clinical_benefit_str),]
 total_nobenefit = total[which(total$group == clinical_nobenefit_str),]
-  
+if (which_data == "Snyder")
+{
+  eightpatient_benefit = eightpatient[which(eightpatient$group == clinical_benefit_str),]
+  eightpatient_nobenefit = eightpatient[which(eightpatient$group == clinical_nobenefit_str),]
+}
   
 ###############
 # Basic plots #
@@ -94,9 +100,19 @@ points(total_nobenefit$nonsynonymous, total_nobenefit$overall_survival,  xlab= "
      ylab= "Overall survival", col ="red", pch = ".", cex = 5, main = which_data)
 legend("topright", # places a legend at the appropriate place 
        c("Responders","Non-responders"), # puts text in the legend
-       pch = c(".","."), # gives the legend appropriate symbols (lines),
+       pch = c(".","."),
        lwd = c(1,1),
-       cex=c(1,1),col=c("blue", "red")) # gives the legend lines the correct color and width
+       col=c("blue", "red")) # gives the legend lines the correct color and width
+dev.off()
+if (which_data == "Snyder")
+{
+  points(eightpatient$nonsynonymous, eightpatient$overall_survival, col ="orange")
+  legend("topright", # places a legend at the appropriate place 
+         c("Responders","Non-responders", "Eight patients"), # puts text in the legend
+         pch = c(".",".", "."), # gives the legend appropriate symbols (lines),
+         lwd = c(1,1,1),
+         col=c("blue", "red", "orange")) # gives the legend lines the correct color and width
+}
 dev.off()
 
 # Same figure, but in log scale
@@ -112,7 +128,17 @@ legend("topright", # places a legend at the appropriate place
        c("Responders","Non-responders"), # puts text in the legend
        pch = c(".","."), # gives the legend appropriate symbols (lines),
        lwd = c(1,1),
-       cex=c(1,1),col=c("blue", "red")) # gives the legend lines the correct color and width
+       col=c("blue", "red")) # gives the legend lines the correct color and width
+if (which_data == "Snyder")
+{
+  points(log(eightpatient$nonsynonymous), log(eightpatient$overall_survival),  xlab= "Number of Nonsynonymous mutations",
+         ylab= "Overall survival", col ="orange", pch = ".", cex = 5, main = which_data)
+         legend("topright", # places a legend at the appropriate place 
+         c("Responders","Non-responders", "Eight patients"), # puts text in the legend
+         pch = c(".","."), # gives the legend appropriate symbols (lines),
+         lwd = c(1,1),
+         cex=c(1,1),col=c("blue", "red", "orange")) # gives the legend lines the correct color and width
+}
 dev.off()
 }
 
@@ -265,11 +291,13 @@ legend("topright", # places a legend at the appropriate place
        pch = c(".")) # gives the legend lines the correct color and width
 dev.off()
 }
+
 if (permutation_tests_LR_multiple_mut == T)
 {
   pvalue_comp = vector()
   mut_chosen_list = vector()
   k = 0
+  try(
   for (mut_chosen in (min(total$nonsynonymous)):(max(total$nonsynonymous)))
     {
     real_test <- survdiff(Surv(total$overall_survival, total$dead) ~ total$nonsynonymous > mut_chosen)
@@ -277,7 +305,6 @@ if (permutation_tests_LR_multiple_mut == T)
     list_i = list()
     list_Z= vector()
     j = 1
-    try(
       for (i in 1:number_of_simulations)
       {
         overall_survival_shuffled = sample(total$overall_survival)
@@ -286,17 +313,17 @@ if (permutation_tests_LR_multiple_mut == T)
         list_i[j] = i
         list_Z[j] = Z
         j = j+1
-      })
+      }
     pvalue_comp[k] = length(which(list_Z > real_Z))/number_of_simulations
     mut_chosen_list[k] = mut_chosen
     k = k+1
-  }
-  namefile5 = paste("Permutation_Log-Rank_Multiple",which_data, ".jpg")
+  })
+  namefile6 = paste("Permutation_Log-Rank_Multiple",which_data, ".jpg")
   jpeg(namefile6)
   plot(mut_chosen_list, pvalue_comp, xlim = c(min(total$nonsynonymous),max(total$nonsynonymous)), 
        ylim = c(min(pvalue_comp), max(pvalue_comp)), pch = ".",
-       x_lab = "Discriminant number of mutations", ylab = "p_value")
+       xlab = "Discriminant number of mutations", ylab = "p_value")
   lines(mut_chosen_list, pvalue_comp)
-  dev.off
+  dev.off()
 }
 }
