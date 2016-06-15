@@ -6,21 +6,22 @@ number_of_simulations = 10000
 # Discriminant number of mutation to perform the survival analysis
 mutation_discriminant = 100
 # Choose which data to analyse
-Van_Allen = F
-Snyder = F
-Rizvi = F
+Van_Allen = T
+Snyder = T
+Rizvi = T
 Hugo = T
 
 # Choose which test to perform
 replace_eight_patients = F
-burden_VS_survival_and_age = T
-burden_VS_survival = T
-burden_VS_benefit = T
-threshold_mutation = T
-survival_analysis = T
-permutation_tests_LR = T
-permutation_tests_MW = T
-permutation_tests_LR_multiple_mut = T
+burden_VS_survival_and_age = F
+burden_VS_survival = F
+burden_VS_benefit = F
+threshold_mutation = F
+survival_analysis = F
+permutation_tests_LR = F
+permutation_tests_MW = F
+permutation_tests_LR_multiple_mut = F
+optimal_cutpoint = T
 
 #######################
 # Librairies and data #
@@ -383,5 +384,34 @@ if (permutation_tests_LR_multiple_mut == T)
        xlab = "Discriminant number of mutations", ylab = "p_value")
   lines(mut_chosen_list, pvalue_comp)
   dev.off()
+}
+
+#############################
+# Optimal cutpoint analysis #
+#############################
+
+if (optimal_cutpoint == T)
+{
+## P_value vs threshold of mutations
+par(mfrow=c(1,1))
+list_j = list()
+list_pvalues = list()
+j = 1
+try(
+  for (i in sort(unique(na.omit(total$nonsynonymous)))) 
+  {
+    res <- survdiff(Surv(total$overall_survival*12, total$dead) ~ total$nonsynonymous > i)
+    pvalue = pchisq(res$chisq, length(res$n)-1, lower.tail = FALSE)
+    list_j[j] = i
+    list_pvalues[j] = pvalue
+    j = j+1
+  })
+    namefile7 = paste("Smoothing_spline_", which_data, ".jpg")
+    jpeg(namefile7)
+    plot(list_j, list_pvalues, pch = ".", col = 'purple', cex = 5, xlab = "Discriminant number of mutations",
+         ylab = "p-values", main = which_data)
+    spline = smooth.spline(list_j, list_pvalues, df = 5)
+    lines(spline, lwd = 5, col = 'red')
+    dev.off()
 }
 }
