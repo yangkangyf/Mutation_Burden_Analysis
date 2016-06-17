@@ -5,25 +5,41 @@
 number_of_simulations = 1000
 # Discriminant number of mutation to perform the survival analysis
 mutation_discriminant = 100
+
+#################################
+# Choose which tests to perform #
+#################################
 # Choose which data to analyse
 Van_Allen = T
 Snyder = T
 Rizvi = T
 Hugo = T
-
-# Choose which test to perform
+# Replace Snyder"s eight patient to their original group
 replace_eight_patients = F
-burden_VS_survival_and_age = F
+# Plot mutational load VS survival
 burden_VS_survival = F
+# Plot mutational load VS survival with points size according to age
+burden_VS_survival_and_age = F
+# Plot sorted mutational loads for each group (responders and non-responders)
 burden_VS_benefit = F
+# Plot p-value of log-rank test for each possible discriminant number of mutations
 threshold_mutation = F
+# Plot K-M curves for the chosen mutation_discriminant
 survival_analysis = F
+# Plot permutation test density function for log-rank test (by shuffling overall survival)
 permutation_tests_LR = F
+# Plot permutation test density function for Mann-Whitney test (by shuffling mutational load)
 permutation_tests_MW = F
+# Plot p-value of permutation test density function for log-rank test (by shuffling overall survival) for all discriminant number of mutations
 permutation_tests_LR_multiple_mut = F
+# Plot spline and find optimal number of mutations
 optimal_cutpoint = F
+# Plot mutational load VS survival by distinguishing by stage severity
 stage_severity = F
-gender_analysis = T
+# Plot mutational load VS survival by distinguishing by gender
+gender_analysis = F
+# Test potential pitfalls (age, gender, stage)
+pitfalls = T
 
 #######################
 # Librairies and data #
@@ -66,6 +82,7 @@ if (which_data == "Hugo")
     gender <- data$Gender
     male_str = "M"
     female_str = "F"
+    rm(data1, data2, data)
 }
   
 # Import and rearrange Van Allen data
@@ -88,6 +105,7 @@ if (which_data == "Van_Allen")
   gender <- data$gender
   male_str = "male"
   female_str = "female"
+  rm(data)
 }
   
 # Import and rearrange RIZVI data
@@ -106,6 +124,7 @@ gender <- data$Sex
 male_str = "M"
 female_str = "F"
 stage <- data$stage
+rm(data)
 }
   
 # Import and rearrange SNYDER data
@@ -146,6 +165,7 @@ stage1_str = "IIIc"
 stage2_str = "M1a"
 stage3_str = "M1b"
 stage4_str = "M1c"
+rm(data)
 }
   
 total = as.data.frame(cbind(nonsynonymous, group, age,overall_survival,dead, stage, gender))
@@ -294,6 +314,7 @@ if (survival_analysis == T)
          pch = c(".","."), # gives the legend appropriate symbols (lines)
          lwd=c(2.5,2.5),col=c("blue", "red")) # gives the legend lines the correct color and width
   dev.off()
+  rm(over_string, under_string, total_Mut_over, mini.surv2)
   }
 
 
@@ -321,6 +342,7 @@ jpeg(namefile3)
 plot(list_i, list_pvalues, pch = ".", col = 'purple', cex = 5, xlab = "Discriminant number of mutations",
      ylab = "p-values", main = which_data)
 abline(a=0.05, b=0, col = "purple")
+rm(list_i, list_pvalues, j, res)
 dev.off()
 }
 
@@ -363,6 +385,8 @@ legend("topright", # places a legend at the appropriate place
        c(pvalue), # puts text in the legend
        pch = c(".")) # gives the legend lines the correct color and width
 dev.off()
+rm(real_test,real_W,list_i,list_W,j,all_nonsynonymous, total_benefit_shuffled,total_nobenefit_shuffled,res,
+   pvalue_comp,pvalue )
 }
 
 if (permutation_tests_LR == T)
@@ -398,6 +422,7 @@ legend("topright", # places a legend at the appropriate place
        c(pvalue), # puts text in the legend
        pch = c(".")) # gives the legend lines the correct color and width
 dev.off()
+rm(list_i ,list_Z, real_test, real_Z, pvalue_comp, overall_survival_shuffled, res, Z, pvalue)
 }
 
 if (permutation_tests_LR_multiple_mut == T)
@@ -433,6 +458,7 @@ if (permutation_tests_LR_multiple_mut == T)
        xlab = "Discriminant number of mutations", ylab = "p_value")
   lines(mut_chosen_list, pvalue_comp)
   dev.off()
+  rm(list_i ,list_Z, real_test, real_Z, pvalue_comp, mut_chosen_list, mut_chosen, overall_survival_shuffled, res, Z)
 }
 
 #############################
@@ -462,6 +488,7 @@ try(
     spline = smooth.spline(list_j, list_pvalues, df = 5)
     lines(spline, lwd = 5, col = 'red')
     dev.off()
+    rm(list_j, list_pvalues, res, pvalue)
 }
 
 ###########################
@@ -531,5 +558,60 @@ if (gender_analysis == T)
          lwd=c(2.5,2.5),col=c("blue", "pink")) # gives the legend lines the correct color and width
   dev.off()
 }
+rm(total)
+
+###########################
+# Stage severity analysis #
+###########################
+
+if (pitfalls == T)
+{
+# Test if male and females have different mutational load
+wilcox.test(total_male$nonsynonymous, total_female$nonsynonymous)
+# Test if male and females have different overall survival
+wilcox.test(total_male$overall_survival, total_female$overall_survival)
+
+# Test if responders and nonresponders have different mutational load
+wilcox.test(total_benefit$nonsynonymous, total_nobenefit$nonsynonymous)
+# Test if male and females have different overall survival
+wilcox.test(total_benefit$overall_survival, total_nobenefit$overall_survival)
+
+# Test if responders and nonresponders have different ages
+wilcox.test(total_benefit$age, total_nobenefit$age)
+
+if (which_data != "Rizvi")
+  {
+  # Test if stage 1 and stage 4 patients have different mutational load
+  wilcox.test(total_stage1$nonsynonymous, total_stage4$nonsynonymous)
+  # Test if stage 1 and stage 4 patients have different overall survival
+  wilcox.test(total_stage1$overall_survival, total_stage4$overall_survival)
+
+  # Test if stage 1 and stage 3 patients have different mutational load
+  wilcox.test(total_stage1$nonsynonymous, total_stage3$nonsynonymous)
+  # Test if stage 1 and stage 3 patients have different mutational load
+  wilcox.test(total_stage1$overall_survival, total_stage3$overall_survival)
+
+  # Test if stage 1 and stage 2 patients have different mutational load
+  wilcox.test(total_stage1$nonsynonymous, total_stage2$nonsynonymous)
+  # Test if stage 1 and stage 2 patients have different mutational load
+  wilcox.test(total_stage1$overall_survival, total_stage2$overall_survival)
+  
+  # Test if stage 2 and stage 3 patients have different mutational load
+  wilcox.test(total_stage2$nonsynonymous, total_stage3$nonsynonymous)
+  # Test if stage 2 and stage 3 patients have different mutational load
+  wilcox.test(total_stage2$overall_survival, total_stage3$overall_survival)
+  
+  # Test if stage 2 and stage 4 patients have different mutational load
+  wilcox.test(total_stage2$nonsynonymous, total_stage4$nonsynonymous)
+  # Test if stage 2 and stage 4 patients have different mutational load
+  wilcox.test(total_stage2$overall_survival, total_stage4$overall_survival)
+  
+  # Test if stage 3 and stage 4 patients have different mutational load
+  wilcox.test(total_stage3$nonsynonymous, total_stage4$nonsynonymous)
+  # Test if stage 3 and stage 4 patients have different mutational load
+  wilcox.test(total_stage3$overall_survival, total_stage4$overall_survival)
 }
+}
+}
+
 
