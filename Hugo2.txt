@@ -26,7 +26,6 @@ Pt24	Partial_Response	UCLA	M	70	M1c	974	Dead	N	L Inguinal, LN	-	Q61K	-	Pembroliz
 Pt25	Progressive_Disease	UCLA	M	74	M1c	262	Dead	Y	L Outer Inguinal	-	-	-	Pembrolizumab	pre-treatment	1	1
 Pt26	Complete_Response	UCLA	M	71	M1c	1336	Alive	Y	L Inguinal	-	-	R440*	Pembrolizumab	on-treatment	1	0
 Pt27	Complete_Response	UCLA	M	83	M1c	548	Alive	N	R upper arm	-	T50I	-	Pembrolizumab	pre-treatment	1	1
-									R upper back	-	T50I	-	Pembrolizumab	pre-treatment	1^	1
 Pt28	Partial_Response	UCLA	M	82	M1c	439	Dead	N	Scalp, SC	-	-	R1653C	Pembrolizumab	pre-treatment	1	1
 Pt29	Progressive_Disease	UCLA	M	84	M1c	269	Dead	Y	Lung	-	-	-	Pembrolizumab	pre-treatment	1	1
 Pt30	Progressive_Disease	VIC	F	80	M1c	100	Dead	N	Retrocecal mass	-	Q61L	-	Pembrolizumab	pre-treatment	1	0
