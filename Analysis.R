@@ -147,7 +147,7 @@ age <- data$Age
   
 if (replace_eight_patients == T)
   {
-  datal$Benefit[48] = 1
+  data$Benefit[48] = 1
   data$Benefit[13] = 1
   data$Benefit[14] = 1
   data$Benefit[15] = 1

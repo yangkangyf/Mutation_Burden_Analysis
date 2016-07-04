@@ -5,6 +5,7 @@
 Van_Allen = T
 Snyder = T
 Rizvi = T
+TCGA = T
 
 ########################
 # IMPACT IMMUNOTHERAPY #

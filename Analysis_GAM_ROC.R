@@ -17,6 +17,7 @@ Snyder = T
 Rizvi = T
 Hugo = T
 TCGA = T
+Snyder2 = T
 
 #######################
 # Librairies and data #
@@ -38,6 +39,8 @@ if (Rizvi == T)
   selected_data[length(selected_data)+1]="Rizvi"
 if (Snyder == T)
   selected_data[length(selected_data)+1]="Snyder"
+if (Snyder2 == T)
+  selected_data[length(selected_data)+1]="Snyder2"
 
 total <- data.frame(
   ticker=character(),
@@ -131,18 +134,41 @@ for (which_data in selected_data)
                           data[25,],data[13,],data[14,],data[15,])
     OS_or_PFS <- "Overall survival"
     age <- data$Age
-    
-    if (replace_eight_patients == T)
-    {
-      data$Benefit[48] = 1
-      data$Benefit[13] = 1
-      data$Benefit[14] = 1
-      data$Benefit[15] = 1
-      data$Benefit[22] = 1
-      data$Benefit[23] = 1
-      data$Benefit[24] = 1
-      data$Benefit[25] = 1
-    }
+
+    group <- (data$Benefit == "1")*1
+    gender <- data$Gender
+    male_str = "M"
+    female_str = "F"
+    stage <- data$M_stage
+    stage1_str = "IIIc"
+    stage2_str = "M1a"
+    stage3_str = "M1b"
+    stage4_str = "M1c"
+    rm(data)
+  }
+  
+  if (which_data == "Snyder2")
+  {
+    S1 = read.table("Snyder1.txt", comment.char = "%", header = T)
+    S2 = read.table("Snyder2.txt", comment.char = "%", header = T)
+    S3 = read.table("Snyder3.txt", comment.char = "%", header = T)
+    bound_S1S2 <- rbind(S1,S2)
+    data <- merge(bound_S1S2, S3, by.y = "Study_ID")
+    nonsynonymous <- data$Mutation
+    overall_survival <- data$OS.yr. *365
+    dead <- data$Alive_at_time_of_censure
+    eightpatient <- rbind(data[48,],data[22,],data[23,],data[24,],
+                          data[25,],data[13,],data[14,],data[15,])
+    OS_or_PFS <- "Overall survival"
+    age <- data$Age
+    data$Benefit[48] = 1
+    data$Benefit[13] = 1
+    data$Benefit[14] = 1
+    data$Benefit[15] = 1
+    data$Benefit[22] = 1
+    data$Benefit[23] = 1
+    data$Benefit[24] = 1
+    data$Benefit[25] = 1
     group <- (data$Benefit == "1")*1
     gender <- data$Gender
     male_str = "M"
@@ -160,11 +186,6 @@ for (which_data in selected_data)
   total <- rbind(total_temp, total)
   total <- data.frame(lapply(total, as.character), stringsAsFactors=FALSE)
   
-  if (which_data == "Snyder")
-  {
-    eightpatient_benefit = eightpatient[which(eightpatient$group == clinical_benefit_str),]
-    eightpatient_nobenefit = eightpatient[which(eightpatient$group == clinical_nobenefit_str),]
-  }
 }
   
   # Distinguish groups according to their disease stage
@@ -177,17 +198,6 @@ for (which_data in selected_data)
   total_male = total[which(gender == male_str),]
   total_female = total[which(gender == female_str),]
 
-  
-##############################
-# Generalized additive model #
-##############################  
-  
-GAM_obj= gam(log(na.omit(as.numeric(total$overall_survival))) ~ na.omit(as.numeric(total$nonsynonymous)))
-plot(log((as.numeric(total$overall_survival))) ~ (as.numeric(total$nonsynonymous)), 
-     pch = '.', cex = 5)
-points(log(tcga$overall_survival) ~ tcga$nonsynonymous, 
-      pch = '.', col = 'red', cex = 5)
-
 ##############
 # ROC curves #
 ##############
@@ -198,7 +208,7 @@ nonsynonymous_list <- list()
 name_list <- list()
 legend_list = as.character()
 count_legend=1
-for (which_data2 in c('Rizvi', 'Snyder', 'Van_Allen', 'Hugo'))
+for (which_data2 in c('Rizvi', 'Snyder', 'Van_Allen', 'Hugo', 'Snyder2'))
 {
   k = 1
   TPR_list_temp = list()
@@ -223,50 +233,84 @@ for (which_data2 in c('Rizvi', 'Snyder', 'Van_Allen', 'Hugo'))
   name_list <- append(name_list, name_list_temp)
   count_legend = count_legend+1
 }
-data <- as.data.frame(cbind(unlist(TPR_list), unlist(FPR_list), as.numeric(nonsynonymous_list), as.list(name_list),unlist(data$V2)^2 + rep(1,length(data$V1)) - unlist(data$V1)^2))
+data <- as.data.frame(cbind(unlist(TPR_list), unlist(FPR_list), as.numeric(nonsynonymous_list), as.list(name_list),unlist(unlist(FPR_list))^2 + rep(1,length(unlist(TPR_list))) - unlist(unlist(TPR_list))^2))
 
-plot(sort(unlist(data$V2)), unlist(data$V1)[order(sort(unlist(data$V2)))], type = "l",
-     col = "black", xlab = "(1-specificity)", ylab = "sensitivity")
+TPR_list_all = list()
+FPR_list_all = list()
+nonsynonymous_list_all = list()
+k= 1
+for (i in min(na.omit(as.numeric(total$nonsynonymous))):max(na.omit(as.numeric(total$nonsynonymous)))) 
+{
+  TP = total[which(na.omit(as.numeric(total$nonsynonymous)) > i &
+                     (na.omit(as.numeric(total$group)) == 1)) ,]
+  TPR_list_all[k] = length(na.omit(as.numeric(TP$nonsynonymous)))/length(which((na.omit(as.numeric(total$group)) == 1)))
+  FP = total[which(na.omit(as.numeric(total$nonsynonymous)) > i &
+                     (na.omit(as.numeric(total$group)) == 0)) ,]
+  FPR_list_all[k] = length(na.omit(as.numeric(FP$nonsynonymous)))/length(which((na.omit(as.numeric(total$group)) == 0) ))
+  nonsynonymous_list_all[k] = i
+  k = k+1
+}
+data_all <- as.data.frame(cbind(unlist(TPR_list_all), unlist(FPR_list_all), as.numeric(nonsynonymous_list), unlist(unlist(FPR_list_all))^2 + rep(1,length(unlist(FPR_list_all))) - unlist(unlist(TPR_list_all))^2))
+
+
+plot(FPR_list_all, TPR_list_all, type = "l",
+     col = "black", xlab = "(1-Specificity)", ylab = "Sensitivity",
+     xlim = c(0,1.1), ylim = c(0,1.1))
 title("ROC curve analysis")
 points(sort(unlist(data[which(data$V4 == "Rizvi"),]$V2)), sort(unlist(data[which(data$V4 == "Rizvi"),]$V1)), type = "l",
-     col = "blue")
+     col = "green")
 points(sort(unlist(data[which(data$V4 == "Snyder"),]$V2)), sort(unlist(data[which(data$V4 == "Snyder"),]$V1)), type = "l",
        col = "red")
 points(sort(unlist(data[which(data$V4 == "Hugo"),]$V2)), sort(unlist(data[which(data$V4 == "Hugo"),]$V1)), type = "l",
-       col = "green")
-points(sort(unlist(data[which(data$V4 == "Van_Allen"),]$V2)), sort(unlist(data[which(data$V4 == "Van_Allen"),]$V1)), type = "l",
        col = "purple")
+points(sort(unlist(data[which(data$V4 == "Van_Allen"),]$V2)), sort(unlist(data[which(data$V4 == "Van_Allen"),]$V1)), type = "l",
+       col = "blue")
+points(sort(unlist(data[which(data$V4 == "Snyder2"),]$V2)), sort(unlist(data[which(data$V4 == "Snyder2"),]$V1)), type = "l",
+       col = "orange")
 abline(a = 0, b =1) 
-legend_list[1] = paste("All datas", ",  AUC = ",as.character(round(auc(unlist(FPR_list), unlist(TPR_list)),3)))
-legend_list[2] = paste("Rizvi", ",  AUC = ",as.character(round(auc(sort(unlist(data[which(data$V4 == "Rizvi"),]$V2)), sort(unlist(data[which(data$V4 == "Rizvi"),]$V1))),3)))
-legend_list[3] = paste("Snyder", ",  AUC = ",as.character(round(auc(sort(unlist(data[which(data$V4 == "Snyder"),]$V2)), sort(unlist(data[which(data$V4 == "Snyder"),]$V1))),3)))
-legend_list[4] = paste("Hugo", ",  AUC = ",as.character(round(auc(sort(unlist(data[which(data$V4 == "Hugo"),]$V2)), sort(unlist(data[which(data$V4 == "Hugo"),]$V1))),3)))
-legend_list[5] = paste("Van Allen", ",  AUC = ",as.character(round(auc(sort(unlist(data[which(data$V4 == "Van_Allen"),]$V2)), sort(unlist(data[which(data$V4 == "Van_Allen"),]$V1))),3)))
+legend_list[1] = paste("All datas (n=246)", ",  AUC = ",as.character(round(auc(unlist(FPR_list), unlist(TPR_list)),3)))
+legend_list[2] = paste("Rizvi (n=34)", ",  AUC = ",as.character(round(auc(sort(unlist(data[which(data$V4 == "Rizvi"),]$V2)), sort(unlist(data[which(data$V4 == "Rizvi"),]$V1))),3)))
+legend_list[3] = paste("Snyder (n=64)", ",  AUC = ",as.character(round(auc(sort(unlist(data[which(data$V4 == "Snyder"),]$V2)), sort(unlist(data[which(data$V4 == "Snyder"),]$V1))),3)))
+legend_list[4] = paste("Hugo (n=38)", ",  AUC = ",as.character(round(auc(sort(unlist(data[which(data$V4 == "Hugo"),]$V2)), sort(unlist(data[which(data$V4 == "Hugo"),]$V1))),3)))
+legend_list[5] = paste("Van Allen (n=110)", ",  AUC = ",as.character(round(auc(sort(unlist(data[which(data$V4 == "Van_Allen"),]$V2)), sort(unlist(data[which(data$V4 == "Van_Allen"),]$V1))),3)))
+legend_list[6] = paste("Snyder2 (n=64)", ",  AUC = ",as.character(round(auc(sort(unlist(data[which(data$V4 == "Snyder2"),]$V2)), sort(unlist(data[which(data$V4 == "Snyder2"),]$V1))),3)))
 
 legend("bottomright", # places a legend at the appropriate place 
        legend_list, # puts text in the legend
-       pch = c(".",".", ".", ".","."), # gives the legend appropriate symbols (lines),
-       lwd = c(1,1,1,1,1),
-       col=c('black','blue',"red", "green", "purple")) # gives the legend lines the correct color and width
+       pch = c(".",".", ".", ".",".","."), # gives the legend appropriate symbols (lines),
+       lwd = c(1,1,1,1,1,1),
+       col=c('black','green',"blue", "purple", "red", "orange")) # gives the legend lines the correct color and width
 
 
-#cutoff_all <- which(data$V4 == "Rizvi")[as.numeric(which.min(unlist(data[which(data$V4 == "Rizvi"),]$V5)))]
+cutoff_all <- as.numeric(which.min(unlist(data_all$V4)))
 cutoff_Rizvi <- which(data$V4 == "Rizvi")[as.numeric(which.min(unlist(data[which(data$V4 == "Rizvi"),]$V5)))]
 cutoff_Snyder <- which(data$V4 == "Snyder")[as.numeric(which.min(unlist(data[which(data$V4 == "Snyder"),]$V5)))]
 cutoff_Hugo <- which(data$V4 == "Hugo")[as.numeric(which.min(unlist(data[which(data$V4 == "Hugo"),]$V5)))]
 cutoff_VanAllen <- which(data$V4 == "Van_Allen")[as.numeric(which.min(unlist(data[which(data$V4 == "Van_Allen"),]$V5)))]
-
-#points(unlist(data$V2[cutoff_all]), unlist(data$V1[cutoff_all]), pch = "*", cex = 3)
-#text(unlist(data$V2[cutoff_all]), unlist(data$V1[cutoff_all]) - 0.04, data$V3[cutoff_all])
-
-points(unlist(data$V2[cutoff_Rizvi]), unlist(data$V1[cutoff_Rizvi]), pch = "*", cex = 3, col = "blue")
-text(unlist(data$V2[cutoff_Rizvi]), unlist(data$V1[cutoff_Rizvi]) - 0.04, data$V3[cutoff_Rizvi], col = "blue")
-points(unlist(data$V2[cutoff_Snyder]), unlist(data$V1[cutoff_Snyder]), pch = "*", cex = 3, col = "red")
-text(unlist(data$V2[cutoff_Snyder]), unlist(data$V1[cutoff_Snyder]) - 0.04, data$V3[cutoff_Snyder], col = "red")
-points(unlist(data$V2[cutoff_Hugo]), unlist(data$V1[cutoff_Hugo]), pch = "*", cex = 3, col = "green")
-text(unlist(data$V2[cutoff_Hugo]), unlist(data$V1[cutoff_Hugo]) - 0.04, data$V3[cutoff_Hugo], col = "green")
-points(unlist(data$V2[cutoff_VanAllen]), unlist(data$V1[cutoff_VanAllen]), pch = "*", cex = 3, col = "purple")
-text(unlist(data$V2[cutoff_VanAllen]), unlist(data$V1[cutoff_VanAllen]) - 0.04, data$V3[cutoff_VanAllen], col = "purple")
+cutoff_Snyder2 <- which(data$V4 == "Snyder2")[as.numeric(which.min(unlist(data[which(data$V4 == "Snyder2"),]$V5)))]
 
 
+points(unlist(data_all$V2[cutoff_all]), unlist(data_all$V1[cutoff_all]), pch = "*", cex = 3, col = "black")
+text(unlist(data_all$V2[cutoff_all]), unlist(data_all$V1[cutoff_all]) + 0.04, data_all$V3[cutoff_all], col = "black")
+points(unlist(data$V2[cutoff_Rizvi]), unlist(data$V1[cutoff_Rizvi]), pch = "*", cex = 3, col = "green")
+text(unlist(data$V2[cutoff_Rizvi]), unlist(data$V1[cutoff_Rizvi]) + 0.04, data$V3[cutoff_Rizvi], col = "green")
+points(unlist(data$V2[cutoff_Snyder]), unlist(data$V1[cutoff_Snyder]), pch = "*", cex = 3, col = "blue")
+text(unlist(data$V2[cutoff_Snyder]), unlist(data$V1[cutoff_Snyder]) + 0.04, data$V3[cutoff_Snyder], col = "blue")
+points(unlist(data$V2[cutoff_Hugo]), unlist(data$V1[cutoff_Hugo]), pch = "*", cex = 3, col = "purple")
+text(unlist(data$V2[cutoff_Hugo]), unlist(data$V1[cutoff_Hugo]) + 0.04, data$V3[cutoff_Hugo], col = "purple")
+points(unlist(data$V2[cutoff_VanAllen]), unlist(data$V1[cutoff_VanAllen]), pch = "*", cex = 3, col = "red")
+text(unlist(data$V2[cutoff_VanAllen]), unlist(data$V1[cutoff_VanAllen]) + 0.04, data$V3[cutoff_VanAllen], col = "red")
+points(unlist(data$V2[cutoff_Snyder2]), unlist(data$V1[cutoff_Snyder2]), pch = "*", cex = 3, col = "orange")
+text(unlist(data$V2[cutoff_Snyder2]), unlist(data$V1[cutoff_Snyder2]) + 0.04, data$V3[cutoff_Snyder2], col = "orange")
 
+
+
+##############################
+# Generalized additive model #
+##############################  
+
+#GAM_obj= gam(log(na.omit(as.numeric(total$overall_survival))) ~ na.omit(as.numeric(total$nonsynonymous)))
+#plot(log((as.numeric(total$overall_survival))) ~ (as.numeric(total$nonsynonymous)), 
+#     pch = '.', cex = 5)
+#points(log(tcga$overall_survival) ~ tcga$nonsynonymous, 
+#       pch = '.', col = 'red', cex = 5)
