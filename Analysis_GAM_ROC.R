@@ -241,10 +241,10 @@ nonsynonymous_list_all = list()
 k= 1
 for (i in min(na.omit(as.numeric(total$nonsynonymous))):max(na.omit(as.numeric(total$nonsynonymous)))) 
 {
-  TP = total[which(na.omit(as.numeric(total$nonsynonymous)) > i &
+  TP = total[which(na.omit(as.numeric(total$nonsynonymous)) > i & (na.omit(total$V7) != "Snyder2") &
                      (na.omit(as.numeric(total$group)) == 1)) ,]
   TPR_list_all[k] = length(na.omit(as.numeric(TP$nonsynonymous)))/length(which((na.omit(as.numeric(total$group)) == 1)))
-  FP = total[which(na.omit(as.numeric(total$nonsynonymous)) > i &
+  FP = total[which(na.omit(as.numeric(total$nonsynonymous)) > i & (na.omit(total$V7) != "Snyder2") &
                      (na.omit(as.numeric(total$group)) == 0)) ,]
   FPR_list_all[k] = length(na.omit(as.numeric(FP$nonsynonymous)))/length(which((na.omit(as.numeric(total$group)) == 0) ))
   nonsynonymous_list_all[k] = i
@@ -268,12 +268,37 @@ points(sort(unlist(data[which(data$V4 == "Van_Allen"),]$V2)), sort(unlist(data[w
 points(sort(unlist(data[which(data$V4 == "Snyder2"),]$V2)), sort(unlist(data[which(data$V4 == "Snyder2"),]$V1)), type = "l",
        col = "orange")
 abline(a = 0, b =1) 
-legend_list[1] = paste("All datas (n=246)", ",  AUC = ",as.character(round(auc(unlist(FPR_list), unlist(TPR_list)),3)))
-legend_list[2] = paste("Rizvi (n=34)", ",  AUC = ",as.character(round(auc(sort(unlist(data[which(data$V4 == "Rizvi"),]$V2)), sort(unlist(data[which(data$V4 == "Rizvi"),]$V1))),3)))
-legend_list[3] = paste("Snyder (n=64)", ",  AUC = ",as.character(round(auc(sort(unlist(data[which(data$V4 == "Snyder"),]$V2)), sort(unlist(data[which(data$V4 == "Snyder"),]$V1))),3)))
-legend_list[4] = paste("Hugo (n=38)", ",  AUC = ",as.character(round(auc(sort(unlist(data[which(data$V4 == "Hugo"),]$V2)), sort(unlist(data[which(data$V4 == "Hugo"),]$V1))),3)))
-legend_list[5] = paste("Van Allen (n=110)", ",  AUC = ",as.character(round(auc(sort(unlist(data[which(data$V4 == "Van_Allen"),]$V2)), sort(unlist(data[which(data$V4 == "Van_Allen"),]$V1))),3)))
-legend_list[6] = paste("Snyder2 (n=64)", ",  AUC = ",as.character(round(auc(sort(unlist(data[which(data$V4 == "Snyder2"),]$V2)), sort(unlist(data[which(data$V4 == "Snyder2"),]$V1))),3)))
+
+auc_all = auc(unlist(FPR_list), unlist(TPR_list))
+N1_all = length(which(total$group == 1 &  (na.omit(total$V7) != "Snyder2")))
+N2_all = length(which(total$group == 0 &  (na.omit(total$V7) != "Snyder2")))
+
+auc_rizvi = auc(sort(unlist(data[which(data$V4 == "Rizvi"),]$V2)), sort(unlist(data[which(data$V4 == "Rizvi"),]$V1)))
+N1_rizvi = length(which(total$group == 1 & (na.omit(total$V7) == "Rizvi")))
+N2_rizvi= length(which(total$group == 0 & (na.omit(total$V7) == "Rizvi")))
+
+auc_snyder = auc(sort(unlist(data[which(data$V4 == "Snyder"),]$V2)), sort(unlist(data[which(data$V4 == "Snyder"),]$V1)))
+N1_snyder = length(which(total$group == 1 & (na.omit(total$V7) == "Snyder")))
+N2_snyder= length(which(total$group == 0 &  (na.omit(total$V7) == "Snyder")))
+
+auc_hugo = auc(sort(unlist(data[which(data$V4 == "Hugo"),]$V2)), sort(unlist(data[which(data$V4 == "Hugo"),]$V1)))
+N1_hugo = length(which(total$group == 1 &  (na.omit(total$V7) == "Hugo")))
+N2_hugo= length(which(total$group == 0 &  (na.omit(total$V7) == "Hugo")))
+
+auc_vanallen = auc(sort(unlist(data[which(data$V4 == "Van_Allen"),]$V2)), sort(unlist(data[which(data$V4 == "Van_Allen"),]$V1)))
+N1_vanallen = length(which(total$group == 1 &  (na.omit(total$V7) == "Van_Allen")))
+N2_vanallen= length(which(total$group == 0 &  (na.omit(total$V7) == "Van_Allen")))
+
+auc_snyder2 = auc(sort(unlist(data[which(data$V4 == "Snyder2"),]$V2)), sort(unlist(data[which(data$V4 == "Snyder2"),]$V1)))
+N1_snyder2 = length(which(total$group == 1 &  (na.omit(total$V7) == "Snyder2")))
+N2_snyder2= length(which(total$group == 0 &  (na.omit(total$V7) == "Snyder2")))
+
+legend_list[1] = paste("All datas (n=246)", ",  AUC = ",as.character(round(auc_all,3)))
+legend_list[2] = paste("Rizvi (n=34)", ",  AUC = ",as.character(round(auc_rizvi,3)))
+legend_list[3] = paste("Snyder (n=64)", ",  AUC = ",as.character(round(auc_snyder,3)))
+legend_list[4] = paste("Hugo (n=38)", ",  AUC = ",as.character(round(auc_hugo,3)))
+legend_list[5] = paste("Van Allen (n=110)", ",  AUC = ",as.character(round(auc_vanallen,3)))
+legend_list[6] = paste("Snyder2 (n=64)", ",  AUC = ",as.character(round(auc_snyder2,3)))
 
 legend("bottomright", # places a legend at the appropriate place 
        legend_list, # puts text in the legend
@@ -289,7 +314,6 @@ cutoff_Hugo <- which(data$V4 == "Hugo")[as.numeric(which.min(unlist(data[which(d
 cutoff_VanAllen <- which(data$V4 == "Van_Allen")[as.numeric(which.min(unlist(data[which(data$V4 == "Van_Allen"),]$V5)))]
 cutoff_Snyder2 <- which(data$V4 == "Snyder2")[as.numeric(which.min(unlist(data[which(data$V4 == "Snyder2"),]$V5)))]
 
-
 points(unlist(data_all$V2[cutoff_all]), unlist(data_all$V1[cutoff_all]), pch = "*", cex = 3, col = "black")
 text(unlist(data_all$V2[cutoff_all]), unlist(data_all$V1[cutoff_all]) + 0.04, data_all$V3[cutoff_all], col = "black")
 points(unlist(data$V2[cutoff_Rizvi]), unlist(data$V1[cutoff_Rizvi]), pch = "*", cex = 3, col = "green")
@@ -303,7 +327,35 @@ text(unlist(data$V2[cutoff_VanAllen]), unlist(data$V1[cutoff_VanAllen]) + 0.04, 
 points(unlist(data$V2[cutoff_Snyder2]), unlist(data$V1[cutoff_Snyder2]), pch = "*", cex = 3, col = "orange")
 text(unlist(data$V2[cutoff_Snyder2]), unlist(data$V1[cutoff_Snyder2]) + 0.04, data$V3[cutoff_Snyder2], col = "orange")
 
+#####################
+#Compare ROC curves #
+#####################
+# http://ncss.wpengine.netdna-cdn.com/wp-content/themes/ncss/pdf/Procedures/PASS/Confidence_Intervals_for_the_Area_Under_an_ROC_Curve.pdf
+# https://books.google.com/books?id=JzT_CAAAQBAJ&pg=PT59&lpg=PT59&dq=compare+unpaired+ROC+data&source=bl&ots=wwCAtwQjD1&sig=GKg7zJNHwduFDUjVlH_01iUyVSA&hl=en&sa=X&ved=0ahUKEwju1fKq-NrNAhXk54MKHQhuCHkQ6AEIVDAH#v=onepage&q=compare%20unpaired%20ROC%20data&f=false
 
+se_roc <- function(auc, N1, N2)
+{
+  Q1 = auc/(2-auc)
+  Q2 = (2*auc*auc)/(1+auc)
+  se = sqrt((auc*(1-auc) + (N1-1)*(Q1 - auc*auc) + (N2 - 1)*(Q2-auc*auc))/(N1*N2))
+  return(se)
+}
+
+compare_ROCs <- function(auc1, auc2, se1, se2)
+{
+  T = ((auc1 - auc2)*(auc1 - auc2))/(se1*se1 + se2*se2)
+  p_value = 1- pchisq(T,1)
+  return(p_value)
+}
+
+se_all = se_roc(auc_all, N1_all, N2_all)
+se_rizvi = se_roc(auc_rizvi, N1_rizvi, N2_rizvi)
+se_snyder = se_roc(auc_snyder, N1_snyder, N2_snyder)
+se_hugo = se_roc(auc_hugo, N1_hugo, N2_hugo)
+se_snyder2 = se_roc(auc_snyder2, N1_snyder2, N2_snyder2)
+se_vanallen = se_roc(auc_vanallen, N1_snyder2, N2_vanallen)
+
+compare_ROCs(auc_all, auc_all, se_all, se_all)
 
 ##############################
 # Generalized additive model #
