@@ -7,6 +7,8 @@ number_of_simulations = 1000
 mutation_discriminant = 192
 #Replace eight patients from Snyder's data
 replace_eight_patients = F
+#Remove ten patients from Van Allen's data
+replace_eight_patients = F
 
 #################################
 # Choose which tests to perform #
@@ -355,14 +357,4 @@ se_hugo = se_roc(auc_hugo, N1_hugo, N2_hugo)
 se_snyder2 = se_roc(auc_snyder2, N1_snyder2, N2_snyder2)
 se_vanallen = se_roc(auc_vanallen, N1_snyder2, N2_vanallen)
 
-compare_ROCs(auc_all, auc_all, se_all, se_all)
-
-##############################
-# Generalized additive model #
-##############################  
-
-#GAM_obj= gam(log(na.omit(as.numeric(total$overall_survival))) ~ na.omit(as.numeric(total$nonsynonymous)))
-#plot(log((as.numeric(total$overall_survival))) ~ (as.numeric(total$nonsynonymous)), 
-#     pch = '.', cex = 5)
-#points(log(tcga$overall_survival) ~ tcga$nonsynonymous, 
-#       pch = '.', col = 'red', cex = 5)
+compare_ROCs(auc_snyder, auc_vanallen, se_snyder, se_vanallen)

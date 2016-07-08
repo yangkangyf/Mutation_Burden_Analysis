@@ -2,26 +2,27 @@
 # Adjustable parameters #
 #########################
 # Number of simulations for the permutation test
-number_of_simulations = 1000
+number_of_simulations = 10000
 # Discriminant number of mutation to perform the survival analysis
-mutation_discriminant = 100
+mutation_discriminant = 102
+# Path to photos
+path = "~/Figures/"
 
 #################################
 # Choose which tests to perform #
 #################################
 # Choose which data to analyse
 Van_Allen = T
-Snyder = T
-Rizvi = T
-Hugo = T
-# Replace Snyder"s eight patient to their original group
-replace_eight_patients = F
+Snyder = F
+Snyder2 = F
+Rizvi = F
+Hugo = F
 # Plot mutational load VS survival
-burden_VS_survival = F
+burden_VS_survival = T
 # Plot mutational load VS survival with points size according to age
-burden_VS_survival_and_age = F
+burden_VS_survival_and_age = T
 # Plot sorted mutational loads for each group (responders and non-responders)
-burden_VS_benefit = F
+burden_VS_benefit = T
 # Plot p-value of log-rank test for each possible discriminant number of mutations
 threshold_mutation = F
 # Plot K-M curves for the chosen mutation_discriminant
@@ -39,13 +40,15 @@ stage_severity = F
 # Plot mutational load VS survival by distinguishing by gender
 gender_analysis = F
 # Test potential pitfalls (age, gender, stage)
-pitfalls = T
+pitfalls = F
+# Compute the trimmed data analysis
 
 #######################
 # Librairies and data #
 #######################
 # Load libraries
 library(survival)
+library(ggplot2)
 
 # Run the analysis for selected data
 selected_data = list()
@@ -57,9 +60,36 @@ if (Rizvi == T)
   selected_data[length(selected_data)+1]="Rizvi"
 if (Snyder == T)
   selected_data[length(selected_data)+1]="Snyder"
+if (Snyder2 == T)
+  selected_data[length(selected_data)+1]="Snyder2"
 
 for (which_data in selected_data)
 {
+# Import and rearrange Van Allen data
+if (which_data == "Van_Allen")
+{
+  data = read.csv("Van_Allen.csv")
+  nonsynonymous <- data$nonsynonymous
+  overall_survival <- data$overall_survival
+  group <- data$group
+  clinical_benefit_str <- "response"
+  clinical_nobenefit_str <- "nonresponse"
+  dead <- data$dead
+  OS_or_PFS <- "Overall survival"
+  age <- data$age_start
+  stage <- data$M
+  stage1_str = "M0"
+  stage2_str = "M1a"
+  stage3_str = "M1b"
+  stage4_str = "M1c"
+  gender <- data$gender
+  male_str = "male"
+  female_str = "female"
+  tenpatient <- which(data$overall_survival > 2*365 & data$progression_free < 6*30 & data$RECIST == "PD")
+  rm(data)
+}
+  
+  
 # Import and rearrange Hugo data
 if (which_data == "Hugo")
   {
@@ -83,29 +113,6 @@ if (which_data == "Hugo")
     male_str = "M"
     female_str = "F"
     rm(data1, data2, data)
-}
-  
-# Import and rearrange Van Allen data
-if (which_data == "Van_Allen")
-{
-  data = read.csv("Van_Allen.csv")
-  nonsynonymous <- data$nonsynonymous
-  overall_survival <- data$overall_survival
-  group <- data$group
-  clinical_benefit_str <- "response"
-  clinical_nobenefit_str <- "nonresponse"
-  dead <- data$dead
-  OS_or_PFS <- "Overall survival"
-  age <- data$age_start
-  stage <- data$M
-  stage1_str = "M0"
-  stage2_str = "M1a"
-  stage3_str = "M1b"
-  stage4_str = "M1c"
-  gender <- data$gender
-  male_str = "male"
-  female_str = "female"
-  rm(data)
 }
   
 # Import and rearrange RIZVI data
@@ -144,18 +151,6 @@ eightpatient <- rbind(data[48,],data[22,],data[23,],data[24,],
                       data[25,],data[13,],data[14,],data[15,])
 OS_or_PFS <- "Overall survival"
 age <- data$Age
-  
-if (replace_eight_patients == T)
-  {
-  data$Benefit[48] = 1
-  data$Benefit[13] = 1
-  data$Benefit[14] = 1
-  data$Benefit[15] = 1
-  data$Benefit[22] = 1
-  data$Benefit[23] = 1
-  data$Benefit[24] = 1
-  data$Benefit[25] = 1
-  }
 group <- data$Benefit
 gender <- data$Gender
 male_str = "M"
@@ -167,6 +162,43 @@ stage3_str = "M1b"
 stage4_str = "M1c"
 rm(data)
 }
+  
+# Import and rearrange SNYDER2 data
+if (which_data == "Snyder2")
+{
+  S1 = read.table("Snyder1.txt", comment.char = "%", header = T)
+  S2 = read.table("Snyder2.txt", comment.char = "%", header = T)
+  S3 = read.table("Snyder3.txt", comment.char = "%", header = T)
+  bound_S1S2 <- rbind(S1,S2)
+  data <- merge(bound_S1S2, S3, by.y = "Study_ID")
+  nonsynonymous <- data$Mutation
+  overall_survival <- data$OS.yr. *365
+  clinical_benefit_str <- "1"
+  clinical_nobenefit_str <- "0"
+  dead <- data$Alive_at_time_of_censure
+  eightpatient <- rbind(data[48,],data[22,],data[23,],data[24,],
+                        data[25,],data[13,],data[14,],data[15,])
+  OS_or_PFS <- "Overall survival"
+  age <- data$Age
+  data$Benefit[48] = 1
+  data$Benefit[13] = 1
+  data$Benefit[14] = 1
+  data$Benefit[15] = 1
+  data$Benefit[22] = 1
+  data$Benefit[23] = 1
+  data$Benefit[24] = 1
+  data$Benefit[25] = 1
+  group <- data$Benefit
+  gender <- data$Gender
+  male_str = "M"
+  female_str = "F"
+  stage <- data$M_stage
+  stage1_str = "IIIc"
+  stage2_str = "M1a"
+  stage3_str = "M1b"
+  stage4_str = "M1c"  
+  rm(data)
+  }
   
 total = as.data.frame(cbind(nonsynonymous, group, age,overall_survival,dead, stage, gender))
 
@@ -184,90 +216,94 @@ total_stage4 = total[which(stage == stage4_str),]
 total_male = total[which(gender == male_str),]
 total_female = total[which(gender == female_str),]
 
-
-if (which_data == "Snyder")
-{
-  eightpatient_benefit = eightpatient[which(eightpatient$group == clinical_benefit_str),]
-  eightpatient_nobenefit = eightpatient[which(eightpatient$group == clinical_nobenefit_str),]
-}
+rm(nonsynonymous, group, age,overall_survival,dead, stage, gender)
   
 ###############
 # Basic plots #
 ###############
 
-if (burden_VS_survival_and_age == T)
-{
-  par(mfrow=c(1,1))
-  namefile2 = paste("Survival_VS_Mutational_load_and_age", which_data, ".jpg")
-  jpeg(namefile2)
-  plot(total_benefit$nonsynonymous, total_benefit$overall_survival, xlab= "Number of Nonsynonymous mutations",
-        ylab= OS_or_PFS, col ="blue", pch = ".", cex = total_benefit$age*0.1, main = which_data,      
-        xlim = c(min(na.omit(nonsynonymous)),max(na.omit(nonsynonymous))), 
-        ylim= c(min(na.omit(overall_survival)),max(na.omit(overall_survival))))
-  points(total_nobenefit$nonsynonymous, total_nobenefit$overall_survival, 
-         cex = total_nobenefit$age*0.1, pch = ".", col = "red")
-  legend("topright", # places a legend at the appropriate place 
-         c("Responders","Non-responders"), # puts text in the legend
-         pch = c(".","."),
-         lwd = c(1,1),
-         col=c("blue", "red")) # gives the legend lines the correct color and width
-  dev.off()
-}
 
 if (burden_VS_survival==T)
 {
 # Plot Survival against number of nonsynonymous mutations
 par(mfrow=c(1,1))
-namefile1 = paste("Survival_VS_Mutational_load_", which_data, ".jpg")
-jpeg(namefile1)
-
-plot( total_benefit$nonsynonymous, total_benefit$overall_survival, xlab= "Number of Nonsynonymous mutations",
-     ylab= OS_or_PFS, col ="blue", pch = ".", cex = 5, main = which_data,      
-     xlim = c(min(na.omit(nonsynonymous)),max(na.omit(nonsynonymous))), 
-     ylim= c(min(na.omit(overall_survival)),max(na.omit(overall_survival))))
+namefile = paste(path, "Survival_VS_Mutational_load_", which_data, ".tiff")
+tiff(namefile, width = 8, height = 6, units = 'in', res = 500)
+plot(total_benefit$nonsynonymous, total_benefit$overall_survival, xlab= "Number of Nonsynonymous mutations",
+     ylab= OS_or_PFS, pch = 16,col = "cyan3", cex = 1, main = which_data,      
+     xlim = c(min(total$nonsynonymous),max(total_benefit$nonsynonymous)), 
+     ylim= c(min(total$overall_survival),max(total$overall_survival)))
+points(total_benefit[which(total_benefit$dead == 1),]$nonsynonymous, total_benefit[which(total_benefit$dead == 1),]$overall_survival
+       , pch = 4, cex = 1)
 points(total_nobenefit$nonsynonymous, total_nobenefit$overall_survival, col ="red",
-  pch = ".", cex = 5)
+  pch = 16, cex = 1)
+points(total_nobenefit[which(total_nobenefit$dead == 1),]$nonsynonymous, total_nobenefit[which(total_nobenefit$dead == 1),]$overall_survival, xlab= "Number of Nonsynonymous mutations",
+       ylab= OS_or_PFS, pch = 4, cex = 1)
 legend("topright", # places a legend at the appropriate place 
-       c("Responders","Non-responders"), # puts text in the legend
-       pch = c(".","."),
-       lwd = c(1,1),
-       col=c("blue", "red")) # gives the legend lines the correct color and width
-if (which_data == "Snyder")
+       c("Responders","Non-responders", "Dead"), # puts text in the legend
+       pch = c(16,16,4),
+       col=c("cyan3", "red", "black")) # gives the legend lines the correct color and width
+if (which_data == "Snyder" || which_data == "Snyder2")
 {
-  points(eightpatient$nonsynonymous, eightpatient$overall_survival, col ="orange", cex= 3)
+  points(eightpatient$Mutation, eightpatient$OS.yr*365, 
+         bg ="grey", cex= 1)
   legend("topright", # places a legend at the appropriate place 
-         c("Responders","Non-responders", "Eight patients"), # puts text in the legend
-         pch = c(".",".", "."), # gives the legend appropriate symbols (lines),
-         lwd = c(1,1,1),
-         col=c("blue", "red", "orange")) # gives the legend lines the correct color and width
+         c("Responders","Non-responders", "Dead","Eight patients"), # puts text in the legend
+         pch = c(16,16,4,16), # gives the legend appropriate symbols (lines),
+         col=c("cyan", "red","black", "grey")) # gives the legend lines the correct color and width
+}
+if (which_data == "Van_Allen")
+{
+  points(total[tenpatient,]$nonsynonymous, total[tenpatient,]$overall_survival, 
+         col ="grey", cex= 1, pch = 16)
+  points(total[tenpatient,][which(total[tenpatient,]$dead == 1),]$nonsynonymous, total[tenpatient,][which(total[tenpatient,]$dead == 1),]$overall_survival
+         , pch = 4, cex = 1)
+  legend("topright", # places a legend at the appropriate place 
+         c("Responders","Non-responders","Dead", "Subset"), # puts text in the legend
+         pch = c(16,16,4,16), # gives the legend appropriate symbols (lines),
+         col=c("cyan", "red","black", "grey")) # gives the legend lines the correct color and width
 }
 dev.off()
 
 # Same figure, but in log scale
-namefile1bis = paste("Survival_VS_Mutational_load_log", which_data, ".jpg")
-jpeg(namefile1bis)
-plot(log(total_benefit$nonsynonymous), log(total_benefit$overall_survival), xlab= "Log number of Nonsynonymous mutations",
-      ylab= "Log overall survival", col ="blue", pch = ".", cex = 5, main = which_data,
-      xlim = c(min(log(na.omit(nonsynonymous))),max(log(na.omit(nonsynonymous)))), 
-      ylim= c(min(log(na.omit(overall_survival))),max(log(na.omit(overall_survival)))))
-points(log(na.omit(total_nobenefit$nonsynonymous)), log(na.omit(total_nobenefit$overall_survival)),  xlab= "Log number of Nonsynonymous mutations",
-       ylab= OS_or_PFS, col ="red", pch = ".", cex = 5, main = which_data)
+par(mfrow=c(1,1))
+namefile = paste(path,"Survival_VS_Log_mutational_load_", which_data, ".tiff")
+tiff(namefile, width = 8, height = 6, units = 'in', res = 500)
+plot(log(total_benefit$nonsynonymous), total_benefit$overall_survival, xlab= "Log number of Nonsynonymous mutations",
+     ylab= OS_or_PFS, pch = 16,col = "cyan3", cex = 1, main = which_data,      
+     xlim = c(min(log(total$nonsynonymous)),max(log(total_benefit$nonsynonymous))), 
+     ylim= c(min(total$overall_survival),max(total$overall_survival)))
+points(log(total_benefit[which(total_benefit$dead == 1),]$nonsynonymous), total_benefit[which(total_benefit$dead == 1),]$overall_survival
+       , pch = 4, cex = 1)
+points(log(total_nobenefit$nonsynonymous), total_nobenefit$overall_survival, col ="red",
+       pch = 16, cex = 1)
+points(log(total_nobenefit[which(total_nobenefit$dead == 1),]$nonsynonymous), total_nobenefit[which(total_nobenefit$dead == 1),]$overall_survival, xlab= "Number of Nonsynonymous mutations",
+       ylab= OS_or_PFS, pch = 4, cex = 1)
 legend("topright", # places a legend at the appropriate place 
-       c("Responders","Non-responders"), # puts text in the legend
-       pch = c(".","."), # gives the legend appropriate symbols (lines),
-       lwd = c(1,1),
-       col=c("blue", "red")) # gives the legend lines the correct color and width
-if (which_data == "Snyder")
+       c("Responders","Non-responders", "Dead"), # puts text in the legend
+       pch = c(16,16,4),
+       col=c("cyan3", "red", "black")) # gives the legend lines the correct color and width
+if (which_data == "Snyder" || which_data == "Snyder2")
 {
-  points(log(na.omit(eightpatient$nonsynonymous)), log(na.omit(eightpatient$overall_survival)), col ="orange", cex= 3)
+  points(eightpatient$Mutation, eightpatient$OS.yr*365, 
+         bg ="grey", cex= 1)
   legend("topright", # places a legend at the appropriate place 
-         c("Responders","Non-responders", "Eight patients"), # puts text in the legend
-         pch = c(".",".", "."), # gives the legend appropriate symbols (lines),
-         lwd = c(1,1,1),
-         col=c("blue", "red", "orange")) # gives the legend lines the correct color and width
+         c("Responders","Non-responders", "Dead","Eight patients"), # puts text in the legend
+         pch = c(16,16,4,16), # gives the legend appropriate symbols (lines),
+         col=c("cyan", "red","black", "grey")) # gives the legend lines the correct color and width
+}
+if (which_data == "Van_Allen")
+{
+  points(log(total[tenpatient,]$nonsynonymous), total[tenpatient,]$overall_survival, 
+         col ="grey", cex= 1, pch = 16)
+  points(log(total[tenpatient,][which(total[tenpatient,]$dead == 1),]$nonsynonymous), total[tenpatient,][which(total[tenpatient,]$dead == 1),]$overall_survival
+         , pch = 4, cex = 1)
+  legend("topright", # places a legend at the appropriate place 
+         c("Responders","Non-responders","Dead", "Subset"), # puts text in the legend
+         pch = c(16,16,4,16), # gives the legend appropriate symbols (lines),
+         col=c("cyan", "red","black", "grey")) # gives the legend lines the correct color and width
 }
 dev.off()
-}
 
 ##############################################################
 # Association between Mutational Burden and Clinical Benefit #
@@ -276,20 +312,19 @@ if (burden_VS_benefit == T)
 {
 ### Plot number of nonsynonymous mutations against benefit
 par(mfrow=c(1,1))
-namefile2 = paste("Benefit_VS_MutationalLoad_", which_data, ".jpg")
-jpeg(namefile2)
-plot(sort(na.omit(total_benefit$nonsynonymous)), col = "blue", xlab = "Rank", 
-     ylab = "Number of Nonsynonymous mutations", pch = ".",
-     cex = 5, main = which_data)
-legend("topright", # places a legend at the appropriate place 
-       c("Responders","Non-responders"), # puts text in the legend
-       pch = c(".","."), # gives the legend appropriate symbols (lines)
-       lwd=c(2.5,2.5),col=c("blue", "red")) # gives the legend lines the correct color and width
-abline(a=mean(na.omit(total_benefit$nonsynonymous)), b=0, col = "blue")
-points(sort(na.omit(total_nobenefit$nonsynonymous)), col = "red", xlab = "", 
-       pch = ".", cex = 5)
-abline(a=mean(na.omit(total_nobenefit$nonsynonymous)), b=0, col = "red")
-dev.off()
+namefile = paste(path,"Mutational_load_boxplot", which_data, ".tiff")
+tiff(namefile, width = 8, height = 6, units = 'in', res = 500)
+boxplot( log(total$nonsynonymous) ~ as.factor(total$group), data = total, lwd = 2, 
+         pwcol = 1 + as.numeric(total$dead),offset = .5,
+         ylab = 'Log number of nonymomymous mutations',
+         xlab = 'Response categories',
+         col = c("grey", "red", "cyan3"),
+         names = c("Subset", "Non-responders", "Responders"))
+stripchart(log(total[which(total$dead == 0),]$nonsynonymous) ~ as.factor(total[which(total$dead == 0),]$group), vertical = TRUE, data = total[which(total$dead == 0),], 
+           method = "jitter", add = TRUE, pch = 16, col = 'orange')
+stripchart(log(total[which(total$dead == 1),]$nonsynonymous) ~ as.factor(total[which(total$dead == 1),]$group), vertical = TRUE, data = total[which(total$dead == 1),], 
+           method = "jitter", add = TRUE, pch = 4, col = 'orange')
+dev.off()  
 }
 
 #####################
@@ -297,54 +332,27 @@ dev.off()
 #####################
 if (survival_analysis == T)
 {
-  namefile2bis = paste("Survival_Anaysis_", which_data, ".jpg", ".jpg")
-  jpeg(namefile2bis)
+  namefile = paste(path,"Survival_analysis_", which_data, ".tiff")
+  tiff(namefile, width = 8, height = 6, units = 'in', res = 500)
+  real_test <- survdiff(Surv(total$overall_survival, total$dead) ~ total$nonsynonymous > mutation_discriminant)
+  p.val <- round(1 - pchisq(real_test$chisq, length(real_test$n) - 1),4)
+  title_plot = paste("Log-rank p-value = ", p.val)
   over_string = paste(">", mutation_discriminant, " mutations")
   under_string = paste("<", mutation_discriminant, " mutations")
-  total_Mut_over = total[which(na.omit(nonsynonymous) > mutation_discriminant),] 
+  total_Mut_over = total[which(total$nonsynonymous > mutation_discriminant),] 
   mini.surv2 <- survfit(Surv(total_Mut_over$overall_survival , total_Mut_over$dead)~ 1, conf.type="none")
   plot(mini.surv2, mark.time = T, col = "red", main = which_data, xlab = "Time in days",
        ylab ="Proportion of survivors")
-  # Survival in Discovery set with <= 100 mutations
-  total_Mut_under = total[which(na.omit(nonsynonymous) <= mutation_discriminant),] 
-  mini.surv2 <- survfit(Surv(na.omit(total_Mut_under$overall_survival) , na.omit(total_Mut_under$dead))~ 1, conf.type="none")
+  total_Mut_under = total[which(nonsynonymous <= mutation_discriminant),] 
+  mini.surv2 <- survfit(Surv(total_Mut_under$overall_survival , total_Mut_under$dead)~ 1, conf.type="none")
   lines(mini.surv2, mark.time = T, col = "blue")
   legend("topright", # places a legend at the appropriate place 
-         c(under_string,over_string), # puts text in the legend
-         pch = c(".","."), # gives the legend appropriate symbols (lines)
-         lwd=c(2.5,2.5),col=c("blue", "red")) # gives the legend lines the correct color and width
+         c(under_string,over_string, title_plot), # puts text in the legend
+         pch = c(".",".", ""), # gives the legend appropriate symbols (lines)
+         lwd=c(2.5,2.5),col=c("blue", "red", "white")) # gives the legend lines the correct color and width
   dev.off()
   rm(over_string, under_string, total_Mut_over, mini.surv2)
   }
-
-
-######################
-# Threshold Mutation #
-######################
-if (threshold_mutation == T)
-{
-## P_value vs threshold of mutations
-par(mfrow=c(1,1))
-list_i = list()
-list_pvalues = list()
-j = 1
-try(
-for (i in min(na.omit(nonsynonymous)):max(na.omit(nonsynonymous))) 
-{
-  res <- survdiff(Surv(overall_survival*12, dead) ~ nonsynonymous > i)
-  pvalue = pchisq(res$chisq, length(res$n)-1, lower.tail = FALSE)
-  list_i[j] = i
-  list_pvalues[j] = pvalue
-  j = j+1
-})
-namefile3 = paste("Pvalue_VS_MutationThreshold_", which_data, ".jpg")
-jpeg(namefile3)
-plot(list_i, list_pvalues, pch = ".", col = 'purple', cex = 5, xlab = "Discriminant number of mutations",
-     ylab = "p-values", main = which_data)
-abline(a=0.05, b=0, col = "purple")
-rm(list_i, list_pvalues, j, res)
-dev.off()
-}
 
 #####################
 # Permutation Tests #
@@ -461,6 +469,35 @@ if (permutation_tests_LR_multiple_mut == T)
   rm(list_i ,list_Z, real_test, real_Z, pvalue_comp, mut_chosen_list, mut_chosen, overall_survival_shuffled, res, Z)
 }
 
+
+######################
+# Threshold Mutation #
+######################
+if (threshold_mutation == T)
+{
+  ## P_value vs threshold of mutations
+  par(mfrow=c(1,1))
+  list_i = list()
+  list_pvalues = list()
+  j = 1
+  try(
+    for (i in min(na.omit(nonsynonymous)):max(na.omit(nonsynonymous))) 
+    {
+      res <- survdiff(Surv(overall_survival*12, dead) ~ nonsynonymous > i)
+      pvalue = pchisq(res$chisq, length(res$n)-1, lower.tail = FALSE)
+      list_i[j] = i
+      list_pvalues[j] = pvalue
+      j = j+1
+    })
+  namefile3 = paste("Pvalue_VS_MutationThreshold_", which_data, ".jpg")
+  jpeg(namefile3)
+  plot(list_i, list_pvalues, pch = ".", col = 'purple', cex = 5, xlab = "Discriminant number of mutations",
+       ylab = "p-values", main = which_data)
+  abline(a=0.05, b=0, col = "purple")
+  rm(list_i, list_pvalues, j, res)
+  dev.off()
+}
+
 #############################
 # Optimal cutpoint analysis #
 #############################
@@ -560,6 +597,11 @@ if (gender_analysis == T)
 }
 rm(total)
 
+#################
+# Log odd ratio #
+#################
+
+
 ###########################
 # Stage severity analysis #
 ###########################
@@ -612,6 +654,45 @@ if (which_data != "Rizvi")
   wilcox.test(total_stage3$overall_survival, total_stage4$overall_survival)
 }
 }
+
+
+Done_string = paste(which_data, " done!")
+print(Done_string)
+}
 }
 
 
+if(FALSE) {
+if (burden_VS_survival_and_age == T)
+{
+  par(mfrow=c(1,1))
+  namefile = paste("Survival_VS_Mutational_load_and_age", which_data, ".tiff")
+  tiff(namefile, width = 12, height = 8, units = 'in', res = 500)
+  plot(total_benefit$nonsynonymous, total_benefit$overall_survival, xlab= "Number of Nonsynonymous mutations",
+       ylab= OS_or_PFS, col ="blue", pch = ".", cex = total_benefit$age*0.1, main = which_data,      
+       xlim = c(min(na.omit(nonsynonymous)),max(na.omit(nonsynonymous))), 
+       ylim= c(min(na.omit(overall_survival)),max(na.omit(overall_survival))))
+  points(total_nobenefit$nonsynonymous, total_nobenefit$overall_survival, 
+         cex = total_nobenefit$age*0.1, pch = ".", col = "red")
+  legend("topright", # places a legend at the appropriate place 
+         c("Responders","Non-responders"), # puts text in the legend
+         pch = c(".","."),
+         lwd = c(1,1),
+         col=c("blue", "red")) # gives the legend lines the correct color and width
+  dev.off()
+}
+par(mfrow=c(1,1))
+namefile2 = paste("Benefit_VS_MutationalLoad_", which_data, ".jpg")
+jpeg(namefile2)
+plot(sort(na.omit(total_benefit$nonsynonymous)), col = "blue", xlab = "Rank", 
+     ylab = "Number of Nonsynonymous mutations", pch = ".",
+     cex = 5, main = which_data)
+legend("topright", # places a legend at the appropriate place 
+       c("Responders","Non-responders"), # puts text in the legend
+       pch = c(".","."), # gives the legend appropriate symbols (lines)
+       lwd=c(2.5,2.5),col=c("blue", "red")) # gives the legend lines the correct color and width
+abline(a=mean(na.omit(total_benefit$nonsynonymous)), b=0, col = "blue")
+points(sort(na.omit(total_nobenefit$nonsynonymous)), col = "red", xlab = "", 
+       pch = ".", cex = 5)
+abline(a=mean(na.omit(total_nobenefit$nonsynonymous)), b=0, col = "red")
+dev.off() }
