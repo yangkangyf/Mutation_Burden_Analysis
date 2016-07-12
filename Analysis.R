@@ -1,54 +1,72 @@
+params_tests = list()
+params_data = list()
+params_values = list()
+
+# Path to photos
+path = "~/Figures/"
+
 #########################
 # Adjustable parameters #
 #########################
 # Number of simulations for the permutation test
-number_of_simulations = 10000
+params_values[1] = 10000
 # Discriminant number of mutation to perform the survival analysis
-mutation_discriminant = 102
-# Path to photos
-path = "~/Figures/"
+params_values[2] = 102
 
 #################################
 # Choose which tests to perform #
 #################################
 # Choose which data to analyse
 Van_Allen = T
-Snyder = F
+Snyder = T
 Snyder2 = F
-Rizvi = F
-Hugo = F
-# Plot mutational load VS survival
-burden_VS_survival = T
-# Plot mutational load VS survival with points size according to age
-burden_VS_survival_and_age = T
-# Plot sorted mutational loads for each group (responders and non-responders)
-burden_VS_benefit = T
-# Plot p-value of log-rank test for each possible discriminant number of mutations
-threshold_mutation = F
-# Plot K-M curves for the chosen mutation_discriminant
-survival_analysis = F
-# Plot permutation test density function for log-rank test (by shuffling overall survival)
-permutation_tests_LR = F
-# Plot permutation test density function for Mann-Whitney test (by shuffling mutational load)
-permutation_tests_MW = F
-# Plot p-value of permutation test density function for log-rank test (by shuffling overall survival) for all discriminant number of mutations
-permutation_tests_LR_multiple_mut = F
-# Plot spline and find optimal number of mutations
-optimal_cutpoint = F
-# Plot mutational load VS survival by distinguishing by stage severity
-stage_severity = F
-# Plot mutational load VS survival by distinguishing by gender
-gender_analysis = F
-# Test potential pitfalls (age, gender, stage)
-pitfalls = F
-# Compute the trimmed data analysis
+Rizvi = T
+Hugo = T
 
+
+# Plot mutational load VS survival
+params_tests[1] = F
+# Boxplot of mutational loads for each group
+params_tests[2]  = F
+# Plot permutation test density function for Mann-Whitney test (by shuffling mutational load)
+params_tests[4]  = F
+# Plot p-value of permutation test density function for log-rank test (by shuffling overall survival) for all discriminant number of mutations
+params_tests[6]  = T
+
+# Trimmed analysis
+params_tests[7]  = F
+# Trimmed survival analysis
+params_tests[8]  = F
+# Plot K-M curves for the chosen mutation_discriminant
+params_tests[3]  = F
+# Plot permutation test density function for log-rank test (by shuffling overall survival)
+params_tests[5]  = F
+
+
+if (FALSE)
+{
+# Plot mutational load VS survival with points size according to age
+params[1]  = T
+# Plot sorted mutational loads for each group (responders and non-responders)
+params[1]  = T
+
+# Plot spline and find optimal number of mutations
+params[1]  = F
+# Plot mutational load VS survival by distinguishing by stage severity
+params[1]  = F
+# Plot mutational load VS survival by distinguishing by gender
+params[1]  = F
+# Test potential pitfalls (age, gender, stage)
+params[1]  = F
+# Compute the trimmed data analysis
+}
 #######################
 # Librairies and data #
 #######################
 # Load libraries
 library(survival)
 library(ggplot2)
+library(gdata)
 
 # Run the analysis for selected data
 selected_data = list()
@@ -62,6 +80,9 @@ if (Snyder == T)
   selected_data[length(selected_data)+1]="Snyder"
 if (Snyder2 == T)
   selected_data[length(selected_data)+1]="Snyder2"
+rm(Snyder2, Snyder, Van_Allen, Rizvi, Hugo)
+
+
 
 for (which_data in selected_data)
 {
@@ -72,20 +93,68 @@ if (which_data == "Van_Allen")
   nonsynonymous <- data$nonsynonymous
   overall_survival <- data$overall_survival
   group <- data$group
-  clinical_benefit_str <- "response"
-  clinical_nobenefit_str <- "nonresponse"
+  params_data[1] <- "response"
+  params_data[2] <- "nonresponse"
   dead <- data$dead
-  OS_or_PFS <- "Overall survival"
+  params_data[3] <- "Overall survival"
   age <- data$age_start
   stage <- data$M
-  stage1_str = "M0"
-  stage2_str = "M1a"
-  stage3_str = "M1b"
-  stage4_str = "M1c"
+  params_data[4] = "M0"
+  params_data[5] = "M1a"
+  params_data[6] = "M1b"
+  params_data[7] = "M1c"
   gender <- data$gender
-  male_str = "male"
-  female_str = "female"
-  tenpatient <- which(data$overall_survival > 2*365 & data$progression_free < 6*30 & data$RECIST == "PD")
+  params_data[8] = "male"
+  params_data[9] = "female"
+  special_patients <- which(data$overall_survival > 2*365 & data$progression_free < 6*30 & data$RECIST == "PD")
+  rm(data)
+}
+  
+# Import and rearrange SNYDER data
+if (which_data == "Snyder")
+{
+  S1 = read.table("Snyder1.txt", comment.char = "%", header = T)
+  S2 = read.table("Snyder2.txt", comment.char = "%", header = T)
+  S3 = read.table("Snyder3.txt", comment.char = "%", header = T)
+  bound_S1S2 <- rbind(S1,S2)
+  data <- merge(bound_S1S2, S3, by.y = "Study_ID")
+  nonsynonymous <- data$Mutation
+  overall_survival <- data$OS.yr. *365
+  params_data[1] <- "1"
+  params_data[2] <- "0"
+  dead <- data$Alive_at_time_of_censure
+  special_patients <- c(48,25,22,23,24,25,13,14,15) 
+  params_data[3] <- "Overall survival"
+  age <- data$Age
+  group <- data$Benefit
+  gender <- data$Gender
+  params_data[8] = "M"
+  params_data[9] = "F"
+  stage <- data$M_stage
+  params_data[4] = "IIIc"
+  params_data[5] = "M1a"
+  params_data[6] = "M1b"
+  params_data[7] = "M1c"
+  rm(data)
+}
+
+  
+# Import and rearrange RIZVI data
+if (which_data == "Rizvi")
+{
+  data = read.csv("Rizvi.csv")
+  nonsynonymous <- data$Nonsyn.
+  overall_survival <- data$PFS..mos.*365
+  group <- data$Durable.Clinical.Benefit
+  params_data[1] <- "DCB"
+  params_data[2] <- "NDB"
+  dead <- data$Event....
+  params_data[3] <- "Progression free survival"
+  age <- data$Age..years.
+  gender <- data$Sex
+  params_data[8]  = "M"
+  params_data[9]  = "F"
+  stage <- data$stage
   rm(data)
 }
   
@@ -98,71 +167,24 @@ if (which_data == "Hugo")
     data <- merge(data1, data2, by.y = "Patient_ID")
     nonsynonymous <- data$TotalNonSyn
     group <- data$Response
-    clinical_benefit_str <- "R"
-    clinical_nobenefit_str <- "NR"
-    OS_or_PFS <- "Overall survival"
+    params_data[1] <- "R"
+    params_data[2] <- "NR"
+    params_data[3] <- "Overall survival"
     age <- data$Age
     overall_survival <- data$Overall_Survival
     dead <- (data$Vital_Status == "Dead")*1
     stage <- data$Disease_Status
-    stage1_str = "M0"
-    stage2_str = "M1a"
-    stage3_str = "M1b"
-    stage4_str = "M1c"
+    params_data[4] = "M0"
+    params_data[5] = "M1a"
+    params_data[6] = "M1b"
+    params_data[7] = "M1c"
     gender <- data$Gender
-    male_str = "M"
-    female_str = "F"
+    params_data[8] = "M"
+    params_data[9] = "F"
+    special_patients <- c(9)
     rm(data1, data2, data)
 }
-  
-# Import and rearrange RIZVI data
-if (which_data == "Rizvi")
-{
-data = read.csv("Rizvi.csv")
-nonsynonymous <- data$Nonsyn.
-overall_survival <- data$PFS..mos.*365
-group <- data$Durable.Clinical.Benefit
-clinical_benefit_str <- "DCB"
-clinical_nobenefit_str <- "NDB"
-dead <- data$Event....
-OS_or_PFS <- "Progression free survival"
-age <- data$Age..years.
-gender <- data$Sex
-male_str = "M"
-female_str = "F"
-stage <- data$stage
-rm(data)
-}
-  
-# Import and rearrange SNYDER data
-if (which_data == "Snyder")
-{
-S1 = read.table("Snyder1.txt", comment.char = "%", header = T)
-S2 = read.table("Snyder2.txt", comment.char = "%", header = T)
-S3 = read.table("Snyder3.txt", comment.char = "%", header = T)
-bound_S1S2 <- rbind(S1,S2)
-data <- merge(bound_S1S2, S3, by.y = "Study_ID")
-nonsynonymous <- data$Mutation
-overall_survival <- data$OS.yr. *365
-clinical_benefit_str <- "1"
-clinical_nobenefit_str <- "0"
-dead <- data$Alive_at_time_of_censure
-eightpatient <- rbind(data[48,],data[22,],data[23,],data[24,],
-                      data[25,],data[13,],data[14,],data[15,])
-OS_or_PFS <- "Overall survival"
-age <- data$Age
-group <- data$Benefit
-gender <- data$Gender
-male_str = "M"
-female_str = "F"
-stage <- data$M_stage
-stage1_str = "IIIc"
-stage2_str = "M1a"
-stage3_str = "M1b"
-stage4_str = "M1c"
-rm(data)
-}
-  
+
 # Import and rearrange SNYDER2 data
 if (which_data == "Snyder2")
 {
@@ -200,150 +222,502 @@ if (which_data == "Snyder2")
   rm(data)
   }
   
-total = as.data.frame(cbind(nonsynonymous, group, age,overall_survival,dead, stage, gender))
-
-# Distinguish groups according to clinical benefit  
-total_benefit = total[which(group == clinical_benefit_str),]
-total_nobenefit = total[which(group == clinical_nobenefit_str),]
-
-# Distinguish groups according to their disease stage
-total_stage1 = total[which(stage == stage1_str),]
-total_stage2 = total[which(stage == stage2_str),]
-total_stage3 = total[which(stage == stage3_str),]
-total_stage4 = total[which(stage == stage4_str),]
-
-# Distinguish groups according to their Gender
-total_male = total[which(gender == male_str),]
-total_female = total[which(gender == female_str),]
+total = as.data.frame(cbind(as.numeric((nonsynonymous)), as.character(group), 
+                            as.numeric((age)),
+                            as.numeric((overall_survival)),
+                            as.numeric((dead)), 
+                            as.character(gender)), as.is = F,
+                            stringsAsFactors = FALSE)
+total <- drop.levels(total)
+total$V1 <- as.numeric(total$V1)
+total$V3 <- as.numeric(total$V3)
+total$V4 <- as.numeric(total$V4)
+total$V5 <- as.numeric(total$V5)
+names(total)[1] <- "nonsynonymous"
+names(total)[2] <- "group"
+names(total)[3] <- "age"
+names(total)[4] <- "overall_survival"
+names(total)[5] <- "dead"
+names(total)[6] <- "gender"
+#names(total)[7] <- "stage"
 
 rm(nonsynonymous, group, age,overall_survival,dead, stage, gender)
-  
+# Distinguish groups according to clinical benefit  
+#total_benefit = total[which(group == clinical_benefit_str),]
+#total_nobenefit = total[which(group == clinical_nobenefit_str),]
+
+# Distinguish groups according to their disease stage
+#total_stage1 = total[which(stage == stage1_str),]
+#total_stage2 = total[which(stage == stage2_str),]
+#total_stage3 = total[which(stage == stage3_str),]
+#total_stage4 = total[which(stage == stage4_str),]
+
+# Distinguish groups according to their Gender
+#total_male = total[which(gender == male_str),]
+#total_female = total[which(gender == female_str),]
+
+params_data = unlist(params_data)
+params_values <- as.numeric(params_values)
+
 ###############
 # Basic plots #
 ###############
 
 
-if (burden_VS_survival==T)
+if (params_tests[1] ==T)
 {
 # Plot Survival against number of nonsynonymous mutations
 par(mfrow=c(1,1))
-namefile = paste(path, "Survival_VS_Mutational_load_", which_data, ".tiff")
+namefile = paste(path, "survVSmut_", which_data, ".tiff")
 tiff(namefile, width = 8, height = 6, units = 'in', res = 500)
-plot(total_benefit$nonsynonymous, total_benefit$overall_survival, xlab= "Number of Nonsynonymous mutations",
-     ylab= OS_or_PFS, pch = 16,col = "cyan3", cex = 1, main = which_data,      
-     xlim = c(min(total$nonsynonymous),max(total_benefit$nonsynonymous)), 
-     ylim= c(min(total$overall_survival),max(total$overall_survival)))
-points(total_benefit[which(total_benefit$dead == 1),]$nonsynonymous, total_benefit[which(total_benefit$dead == 1),]$overall_survival
-       , pch = 4, cex = 1)
-points(total_nobenefit$nonsynonymous, total_nobenefit$overall_survival, col ="red",
-  pch = 16, cex = 1)
-points(total_nobenefit[which(total_nobenefit$dead == 1),]$nonsynonymous, total_nobenefit[which(total_nobenefit$dead == 1),]$overall_survival, xlab= "Number of Nonsynonymous mutations",
-       ylab= OS_or_PFS, pch = 4, cex = 1)
+plot(total[which(total$group == params_data[1]),]$nonsynonymous, total[which(total$group == params_data[1]),]$overall_survival,
+     xlab= "Number of Nonsynonymous mutations",
+     ylab= params_data[3], pch = 16,col = "cyan3", cex = 1, main = which_data,      
+     xlim = c(min(total$nonsynonymous),max(total$nonsynonymous)), 
+     ylim= c(min(na.omit(total$overall_survival)),max(na.omit(total$overall_survival))))
+points(total[which(total$group == params_data[1]),][which(total[which(total$group == params_data[1]),]$dead == 1),]$nonsynonymous, 
+       total[which(total$group == params_data[1]),][which(total[which(total$group == params_data[1]),]$dead == 1),]$overall_survival,
+       pch = 1, cex = 1)
+points(total[which(total$group == params_data[2]),]$nonsynonymous, 
+       total[which(total$group == params_data[2]),]$overall_survival, col ="red",
+       pch = 16, cex = 1)
+points(total[which(total$group == params_data[2]),][which(total[which(total$group == params_data[2]),]$dead == 1),]$nonsynonymous, 
+       total[which(total$group == params_data[2]),][which(total[which(total$group == params_data[2]),]$dead == 1),]$overall_survival, xlab= "Number of Nonsynonymous mutations",
+       ylab= params_data[3], pch = 1, cex = 1)
 legend("topright", # places a legend at the appropriate place 
        c("Responders","Non-responders", "Dead"), # puts text in the legend
-       pch = c(16,16,4),
+       pch = c(16,16,1),
        col=c("cyan3", "red", "black")) # gives the legend lines the correct color and width
 if (which_data == "Snyder" || which_data == "Snyder2")
 {
-  points(eightpatient$Mutation, eightpatient$OS.yr*365, 
-         bg ="grey", cex= 1)
+  points(total[special_patients,]$nonsynonymous, total[special_patients,]$overall_survival, 
+         col ="grey", cex= 1, pch = 16)
+  points(total[special_patients,][which(total[special_patients,]$dead == 1),]$nonsynonymous, 
+         total[special_patients,][which(total[special_patients,]$dead == 1),]$overall_survival
+         , pch = 1, cex = 1)
   legend("topright", # places a legend at the appropriate place 
-         c("Responders","Non-responders", "Dead","Eight patients"), # puts text in the legend
-         pch = c(16,16,4,16), # gives the legend appropriate symbols (lines),
+         c("Responders","Non-responders","Dead", "Reassigned patients"), # puts text in the legend
+         pch = c(16,16,1,16), # gives the legend appropriate symbols (lines),
          col=c("cyan", "red","black", "grey")) # gives the legend lines the correct color and width
 }
 if (which_data == "Van_Allen")
 {
-  points(total[tenpatient,]$nonsynonymous, total[tenpatient,]$overall_survival, 
+  points(total[special_patients,]$nonsynonymous, total[special_patients,]$overall_survival, 
          col ="grey", cex= 1, pch = 16)
-  points(total[tenpatient,][which(total[tenpatient,]$dead == 1),]$nonsynonymous, total[tenpatient,][which(total[tenpatient,]$dead == 1),]$overall_survival
-         , pch = 4, cex = 1)
+  points(total[special_patients,][which(total[special_patients,]$dead == 1),]$nonsynonymous, 
+         total[special_patients,][which(total[special_patients,]$dead == 1),]$overall_survival
+         , pch = 1, cex = 1)
   legend("topright", # places a legend at the appropriate place 
          c("Responders","Non-responders","Dead", "Subset"), # puts text in the legend
-         pch = c(16,16,4,16), # gives the legend appropriate symbols (lines),
+         pch = c(16,16,1,16), # gives the legend appropriate symbols (lines),
          col=c("cyan", "red","black", "grey")) # gives the legend lines the correct color and width
 }
+
 dev.off()
 
 # Same figure, but in log scale
 par(mfrow=c(1,1))
-namefile = paste(path,"Survival_VS_Log_mutational_load_", which_data, ".tiff")
+namefile = paste(path,"survVSlogmut_", which_data, ".tiff")
 tiff(namefile, width = 8, height = 6, units = 'in', res = 500)
-plot(log(total_benefit$nonsynonymous), total_benefit$overall_survival, xlab= "Log number of Nonsynonymous mutations",
-     ylab= OS_or_PFS, pch = 16,col = "cyan3", cex = 1, main = which_data,      
-     xlim = c(min(log(total$nonsynonymous)),max(log(total_benefit$nonsynonymous))), 
-     ylim= c(min(total$overall_survival),max(total$overall_survival)))
-points(log(total_benefit[which(total_benefit$dead == 1),]$nonsynonymous), total_benefit[which(total_benefit$dead == 1),]$overall_survival
-       , pch = 4, cex = 1)
-points(log(total_nobenefit$nonsynonymous), total_nobenefit$overall_survival, col ="red",
+plot(log(total[which(total$group == params_data[1]),]$nonsynonymous), total[which(total$group == params_data[1]),]$overall_survival,
+     xlab= "Log number of Nonsynonymous mutations",
+     ylab= params_data[3], pch = 16,col = "cyan3", cex = 1, main = which_data,      
+     xlim = c(min(log(total$nonsynonymous)),max(log(total$nonsynonymous))), 
+     ylim= c(min(na.omit(total$overall_survival)),max(na.omit(total$overall_survival))))
+points(log(total[which(total$group == params_data[1]),][which(total[which(total$group == params_data[1]),]$dead == 1),]$nonsynonymous), 
+       total[which(total$group == params_data[1]),][which(total[which(total$group == params_data[1]),]$dead == 1),]$overall_survival,
+       pch = 1, cex = 1)
+points(log(total[which(total$group == params_data[2]),]$nonsynonymous), 
+       total[which(total$group == params_data[2]),]$overall_survival, col ="red",
        pch = 16, cex = 1)
-points(log(total_nobenefit[which(total_nobenefit$dead == 1),]$nonsynonymous), total_nobenefit[which(total_nobenefit$dead == 1),]$overall_survival, xlab= "Number of Nonsynonymous mutations",
-       ylab= OS_or_PFS, pch = 4, cex = 1)
+points(log(total[which(total$group == params_data[2]),][which(total[which(total$group == params_data[2]),]$dead == 1),]$nonsynonymous), 
+       total[which(total$group == params_data[2]),][which(total[which(total$group == params_data[2]),]$dead == 1),]$overall_survival, xlab= "Number of Nonsynonymous mutations",
+       ylab= params_data[3], pch = 1, cex = 1)
 legend("topright", # places a legend at the appropriate place 
        c("Responders","Non-responders", "Dead"), # puts text in the legend
-       pch = c(16,16,4),
+       pch = c(16,16,1),
        col=c("cyan3", "red", "black")) # gives the legend lines the correct color and width
 if (which_data == "Snyder" || which_data == "Snyder2")
 {
-  points(eightpatient$Mutation, eightpatient$OS.yr*365, 
-         bg ="grey", cex= 1)
+  points(log(total[special_patients,]$nonsynonymous), total[special_patients,]$overall_survival, 
+         col ="grey", cex= 1, pch = 16)
+  points(log(total[special_patients,][which(total[special_patients,]$dead == 1),]$nonsynonymous), 
+         total[special_patients,][which(total[special_patients,]$dead == 1),]$overall_survival
+         , pch = 1, cex = 1)
   legend("topright", # places a legend at the appropriate place 
-         c("Responders","Non-responders", "Dead","Eight patients"), # puts text in the legend
-         pch = c(16,16,4,16), # gives the legend appropriate symbols (lines),
+         c("Responders","Non-responders","Dead", "Reassigned"), # puts text in the legend
+         pch = c(16,16,1,16), # gives the legend appropriate symbols (lines),
          col=c("cyan", "red","black", "grey")) # gives the legend lines the correct color and width
 }
 if (which_data == "Van_Allen")
 {
-  points(log(total[tenpatient,]$nonsynonymous), total[tenpatient,]$overall_survival, 
+  points(log(total[special_patients,]$nonsynonymous), total[special_patients,]$overall_survival, 
          col ="grey", cex= 1, pch = 16)
-  points(log(total[tenpatient,][which(total[tenpatient,]$dead == 1),]$nonsynonymous), total[tenpatient,][which(total[tenpatient,]$dead == 1),]$overall_survival
-         , pch = 4, cex = 1)
+  points(log(total[special_patients,][which(total[special_patients,]$dead == 1),]$nonsynonymous), 
+         total[special_patients,][which(total[special_patients,]$dead == 1),]$overall_survival
+         , pch = 1, cex = 1)
   legend("topright", # places a legend at the appropriate place 
          c("Responders","Non-responders","Dead", "Subset"), # puts text in the legend
-         pch = c(16,16,4,16), # gives the legend appropriate symbols (lines),
+         pch = c(16,16,1,16), # gives the legend appropriate symbols (lines),
          col=c("cyan", "red","black", "grey")) # gives the legend lines the correct color and width
 }
 dev.off()
+}
+
 
 ##############################################################
 # Association between Mutational Burden and Clinical Benefit #
 ##############################################################
-if (burden_VS_benefit == T)
+if (params_tests[2] == T)
 {
 ### Plot number of nonsynonymous mutations against benefit
-par(mfrow=c(1,1))
-namefile = paste(path,"Mutational_load_boxplot", which_data, ".tiff")
+par(oma = c(4, 1, 1, 1))
+namefile = paste(path,"mutBox", which_data, ".tiff")
 tiff(namefile, width = 8, height = 6, units = 'in', res = 500)
-boxplot( log(total$nonsynonymous) ~ as.factor(total$group), data = total, lwd = 2, 
+
+
+if (nlevels(as.factor(total$group)) == 2)
+{
+  col_ = c("red", "cyan3")
+  names_ = c("Non-responders", "Responders")
+}
+
+if (nlevels(as.factor(total$group)) == 3)
+{
+  col_ =  c("grey", "red", "cyan3")
+  names_ = c("Subset", "Non-responders", "Responders")
+}
+
+boxplot(log(total$nonsynonymous) ~ as.factor(total$group), data = total, lwd = 2, 
          pwcol = 1 + as.numeric(total$dead),offset = .5,
          ylab = 'Log number of nonymomymous mutations',
          xlab = 'Response categories',
-         col = c("grey", "red", "cyan3"),
-         names = c("Subset", "Non-responders", "Responders"))
+         col = col_,
+         names = names_)
+
 stripchart(log(total[which(total$dead == 0),]$nonsynonymous) ~ as.factor(total[which(total$dead == 0),]$group), vertical = TRUE, data = total[which(total$dead == 0),], 
-           method = "jitter", add = TRUE, pch = 16, col = 'orange')
+           method = "jitter", add = TRUE, pch = 16, col = 'black')
 stripchart(log(total[which(total$dead == 1),]$nonsynonymous) ~ as.factor(total[which(total$dead == 1),]$group), vertical = TRUE, data = total[which(total$dead == 1),], 
-           method = "jitter", add = TRUE, pch = 4, col = 'orange')
+           method = "jitter", add = TRUE, pch = 1, col = 'black')
+wilcox.test(total[which(total$group == params_data[1]),]$nonsynonymous, 
+           total[which(total$group == params_data[2]),]$nonsynonymous)
 dev.off()  
 }
 
-#####################
-# Survival Analysis #
-#####################
-if (survival_analysis == T)
+
+############################
+# Permutation Mann-Whitney #
+############################
+if (params_tests[4] == T)
 {
-  namefile = paste(path,"Survival_analysis_", which_data, ".tiff")
+  # Mann_Whitney (benefit vs no benefit)
+  real_test <- wilcox.test(na.omit(total[which(total$group == params_data[1]),]$nonsynonymous), 
+                           na.omit(total[which(total$group == params_data[2]),]$nonsynonymous))
+  real_W <- as.numeric(as.character(real_test$statistic))
+  list_i = list()
+  list_W= vector()
+  j = 1
+  try(
+    for (i in 1:params_values[1])
+    {
+      all_nonsynonymous <- append(total[which(total$group == params_data[1]),]$nonsynonymous, 
+                                  total[which(total$group == params_data[2]),]$nonsynonymous)
+      all_nonsynonymous = sample(all_nonsynonymous)
+      total_benefit_shuffled = all_nonsynonymous[1:length(total[which(total$group == params_data[1]),]$nonsynonymous)]
+      total_nobenefit_shuffled = all_nonsynonymous[length(total[which(total$group == params_data[1]),]$nonsynonymous)+1:length(all_nonsynonymous)]
+      res <- wilcox.test(total_benefit_shuffled, total_nobenefit_shuffled)
+      W = as.numeric(as.character(res$statistic))
+      list_i[j] = i
+      list_W[j] = W
+      j = j+1
+    })
+  namefile = paste(path, "Perm_MW", which_data, ".tiff")
   tiff(namefile, width = 8, height = 6, units = 'in', res = 500)
-  real_test <- survdiff(Surv(total$overall_survival, total$dead) ~ total$nonsynonymous > mutation_discriminant)
-  p.val <- round(1 - pchisq(real_test$chisq, length(real_test$n) - 1),4)
+  h <- hist(list_W, breaks = params_values[1]/50, main = which_data, xlab = "W statisitics", 
+            xlim = c(min(list_W),max(real_W + real_W/20, max(list_W))))
+  abline(v= real_W, col = 'red')
+  pvalue_comp = length(which(list_W > real_W))/params_values[1]
+  pvalue = paste("p-value = ",pvalue_comp)
+  legend("topright", # places a legend at the appropriate place 
+         c(pvalue), # puts text in the legend
+         pch = c(".")) # gives the legend lines the correct color and width
+  dev.off()
+  rm(W, real_test,real_W,list_i,list_W,j,all_nonsynonymous, total_benefit_shuffled,total_nobenefit_shuffled,res,
+     pvalue_comp,pvalue )
+}
+
+if (params_tests[6] == T)
+{
+  pvalue_comp = vector()
+  mut_chosen_list = vector()
+  k = 0
+  try(
+    for (mut_chosen in (min(total$nonsynonymous)):(max(total$nonsynonymous)))
+    {
+      real_test <- survdiff(Surv(total$overall_survival, total$dead) ~ total$nonsynonymous > mut_chosen)
+      real_Z <- as.numeric(as.character(((real_test$obs[1]-real_test$exp[1])^2)/real_test$exp[1] + ((real_test$obs[2]-real_test$exp[2])^2)/real_test$exp[2]))
+      list_i = list()
+      list_Z= vector()
+      j = 1
+      for (i in 1:params_values[1])
+      {
+        overall_survival_shuffled = sample(total$overall_survival)
+        res <- survdiff(Surv(overall_survival_shuffled, total$dead) ~ total$nonsynonymous > mut_chosen)
+        Z = as.numeric(as.character(((res$obs[1]-res$exp[1]))/res$exp[1] + ((res$obs[2]-res$exp[2]))/res$exp[2]))
+        list_i[j] = i
+        list_Z[j] = Z
+        j = j+1
+      }
+      pvalue_comp[k] = length(which(list_Z > real_Z))/params_values[2]
+      mut_chosen_list[k] = mut_chosen
+      k = k+1
+    })
+  namefile6 = paste("Permutation_Log-Rank_Multiple",which_data, ".jpg")
+  jpeg(namefile6)
+  plot(mut_chosen_list, pvalue_comp, xlim = c(min(total$nonsynonymous),max(total$nonsynonymous)), 
+       ylim = c(min(pvalue_comp), max(pvalue_comp)), pch = ".",
+       xlab = "Discriminant number of mutations", ylab = "p_value")
+  lines(mut_chosen_list, pvalue_comp)
+  dev.off()
+  rm(list_i ,list_Z, real_test, real_Z, pvalue_comp, mut_chosen_list, mut_chosen, overall_survival_shuffled, res, Z)
+}
+}
+
+##########################
+# Log odd ratio analysis #
+##########################
+#RE = Responders-Exposed
+#RN = Responders non exposed
+#NE = Non-responders exposed
+#NN = Non-responders non-exposed
+
+
+OR_list = list()
+OR_IC_u = list()
+OR_IC_l = list()
+j = 0
+i_list = 0
+try(
+for (i in sort(unique(total$nonsynonymous)))
+{
+  RE <- total[which((total$group == as.character(params_data[1])) & (total$nonsynonymous > i)),]$nonsynonymous
+  RE = length(RE)
+  NE <- total[which((total$group == as.character(params_data[2])) & (total$nonsynonymous > i)),]$nonsynonymous
+  NE = length(NE)
+  RN <- total[which((total$group == as.character(params_data[1])) & (total$nonsynonymous < i)),]$nonsynonymous
+  RN = length(RN)
+  NN <- total[which((total$group == as.character(params_data[2])) & (total$nonsynonymous < i)),]$nonsynonymous
+  NN = length(NN)
+  OR_list[j] = log((RE/RN)/(NE/NN))
+  OR_IC_u[j] = log((RE/RN)/(NE/NN)) + 1.96*sqrt(1/RE+1/NE+1/RN+1/NN)
+  OR_IC_l[j] = log((RE/RN)/(NE/NN)) - 1.96*sqrt(1/RE+1/NE+1/RN+1/NN)
+  i_list[j]=i
+  j = j+1
+})
+plot((as.numeric(OR_list)), pch = ".", xlab = "Discriminant number of mutation",
+     ylab= "Odd ratio", cex = 3)
+
+d = NaRV.omit(data.frame(cbind(as.numeric(i_list),
+                               as.numeric(OR_list),
+                               as.numeric(OR_IC_l),
+                               as.numeric(OR_IC_u))))
+names(d) = c("x","y
+             ","ylo","yhi")
+namefile = paste(path,"Forestplot_", which_data, ".tiff")
+tiff(namefile, width = 8, height = 12, units = 'in', res = 800)
+forestplot(d$x,d$y, d$ylo, d$yhi,lwd.zero=1, reo = "red")
+dev.off()
+
+#####################
+# Trimming analysis #
+#####################
+if (params_tests[7] == T)
+{
+  list_wilcox_trimmed = list()
+  total_trimmed <- total[order(total$nonsynonymous),]
+  for (i in 1:floor(length(total[which(total$group == params_data[1]),]$nonsynonymous)))
+  {
+  ### Plot number of nonsynonymous mutations against benefit
+  total_trimmed <- head(total_trimmed,-1) #trim tail
+  total_trimmed <- tail(total_trimmed,-1) #trim head
+  list_wilcox_trimmed[i] <- wilcox.test(total_trimmed[which(total_trimmed$group == params_data[1]),]$nonsynonymous, 
+              total_trimmed[which(total_trimmed$group == params_data[2]),]$nonsynonymous)$p.value
+  }
+  par(mfrow=c(1,1))
+  namefile = paste(path,"Trimmed_data_", which_data, ".tiff")
+  tiff(namefile, width = 8, height = 6, units = 'in', res = 500)
+  plot(as.numeric(list_wilcox_trimmed), type = 'l', 
+       xlab = "Number of values trimmed on each side",
+       ylab = "P-value (Mann-Whitney test)")
+  points(which(as.numeric(list_wilcox_trimmed) == min(as.numeric(list_wilcox_trimmed)), arr.ind = TRUE),
+         as.numeric(list_wilcox_trimmed)[which(as.numeric(list_wilcox_trimmed) == min(as.numeric(list_wilcox_trimmed)), arr.ind = TRUE)],
+         pch = "*", col = "red", cex = 2)
+  abline(a=0.05, b=0, col = 'red') 
+  dev.off()
+  
+namefile = paste(path,"Trimmed_boxplot_", which_data, ".tiff")
+tiff(namefile, width = 8, height = 6, units = 'in', res = 500)
+total_trimmed <- total[order(total$nonsynonymous),]
+total_trimmed <- head(total_trimmed,-which(as.numeric(list_wilcox_trimmed) == min(as.numeric(list_wilcox_trimmed)), arr.ind = TRUE)) #trim tail
+total_trimmed <- tail(total_trimmed,-which(as.numeric(list_wilcox_trimmed) == min(as.numeric(list_wilcox_trimmed)), arr.ind = TRUE)) #trim head
+boxplot(log(total_trimmed$nonsynonymous) ~ as.factor(total_trimmed$group), 
+        data = total_trimmed, lwd = 2, 
+        pwcol = 1 + as.numeric(total_trimmed$dead),offset = .5,
+        ylab = 'Log number of nonymomymous mutations',
+        xlab = 'Response categories',
+        col = c("grey", "red", "cyan3"),
+        names = c("Subset", "Non-responders", "Responders"))
+dev.off()
+
+list_wilcox_trimmed = list()
+total_trimmed <- total[order(total$nonsynonymous),]
+for (i in 1:floor(length(total[which(total$group == params_data[1]),]$nonsynonymous)))
+{
+  ### Plot number of nonsynonymous mutations against benefit
+  total_trimmed <- head(total_trimmed,-1) #trim tail
+  list_wilcox_trimmed[i] <- wilcox.test(total_trimmed[which(total_trimmed$group == params_data[1]),]$nonsynonymous, 
+                                        total_trimmed[which(total_trimmed$group == params_data[2]),]$nonsynonymous)$p.value
+}
+par(mfrow=c(1,1))
+namefile = paste(path,"Trimmed_right_", which_data, ".tiff")
+tiff(namefile, width = 8, height = 6, units = 'in', res = 500)
+plot(as.numeric(list_wilcox_trimmed), type = 'l', 
+     xlab = "Number of values trimmed on the right side",
+     ylab = "P-value (Mann-Whitney test)")
+points(which(as.numeric(list_wilcox_trimmed) == min(as.numeric(list_wilcox_trimmed)), arr.ind = TRUE),
+       as.numeric(list_wilcox_trimmed)[which(as.numeric(list_wilcox_trimmed) == min(as.numeric(list_wilcox_trimmed)), arr.ind = TRUE)],
+       pch = "*", col = "red", cex = 2)
+abline(a=0.05, b=0, col = 'red') 
+dev.off()
+
+
+list_wilcox_trimmed = list()
+total_trimmed <- total[order(total$nonsynonymous),]
+for (i in 1:floor(length(total[which(total$group == params_data[1]),]$nonsynonymous)))
+{
+  ### Plot number of nonsynonymous mutations against benefit
+  total_trimmed <- tail(total_trimmed,-1) #trim tail
+  list_wilcox_trimmed[i] <- wilcox.test(total_trimmed[which(total_trimmed$group == params_data[1]),]$nonsynonymous, 
+                                        total_trimmed[which(total_trimmed$group == params_data[2]),]$nonsynonymous)$p.value
+}
+par(mfrow=c(1,1))
+namefile = paste(path,"Trimmed_right_", which_data, ".tiff")
+tiff(namefile, width = 8, height = 6, units = 'in', res = 500)
+plot(as.numeric(list_wilcox_trimmed), type = 'l', 
+     xlab = "Number of values trimmed on the left side",
+     ylab = "P-value (Mann-Whitney test)")
+points(which(as.numeric(list_wilcox_trimmed) == min(as.numeric(list_wilcox_trimmed)), arr.ind = TRUE),
+       as.numeric(list_wilcox_trimmed)[which(as.numeric(list_wilcox_trimmed) == min(as.numeric(list_wilcox_trimmed)), arr.ind = TRUE)],
+       pch = "*", col = "red", cex = 2)
+abline(a=0.05, b=0, col = 'red') 
+dev.off()
+
+
+namefile = paste(path,"Trimmed_boxplot_right_", which_data, ".tiff")
+tiff(namefile, width = 8, height = 6, units = 'in', res = 500)
+total_trimmed <- total[order(total$nonsynonymous),]
+total_trimmed <- head(total_trimmed,-which(as.numeric(list_wilcox_trimmed) == min(as.numeric(list_wilcox_trimmed)), arr.ind = TRUE)) #trim tail
+total_trimmed <- tail(total_trimmed,-which(as.numeric(list_wilcox_trimmed) == min(as.numeric(list_wilcox_trimmed)), arr.ind = TRUE)) #trim head
+boxplot(log(total_trimmed$nonsynonymous) ~ as.factor(total_trimmed$group), 
+        data = total_trimmed, lwd = 2, 
+        pwcol = 1 + as.numeric(total_trimmed$dead),offset = .5,
+        ylab = 'Log number of nonymomymous mutations',
+        xlab = 'Response categories',
+        col = c("grey", "red", "cyan3"),
+        names = c("Subset", "Non-responders", "Responders"))
+dev.off()
+}
+
+#############################
+# Trimmed Survival Analysis #
+#############################
+if (params_tests[8] == T)
+{
+  difference_survival_list = list()
+  total_trimmed <- total[order(total$nonsynonymous),]
+  for (i in 1:floor(length(total[which(total$group == params_data[1]),]$nonsynonymous)))
+  {
+    ### Plot number of nonsynonymous mutations against benefit
+    total_trimmed_u <- head(total_trimmed,-1) #trim tail
+    total_trimmed_l <- tail(total_trimmed,-1) #trim head
+    med_R = mean(total_trimmed_u$overall_survival)
+    med_NR = mean(total_trimmed_l$overall_survival)
+    difference_survival_list[i] <- med_R - med_NR
+  }
+  namefile = paste(path,"Difference_mean_survival_trimmed_", which_data, ".tiff")
+  tiff(namefile, width = 8, height = 6, units = 'in', res = 500)
+  plot(as.numeric(difference_survival_list), type = "l", 
+       xlab = "Number of values (NsMs) trimmed on both sides",
+       ylab = "Difference in mean survival")
+  dev.off()
+  
+  difference_survival_list = list()
+  total_trimmed <- total[order(total$nonsynonymous),]
+  for (i in 1:50)
+  {
+    ### Plot number of nonsynonymous mutations against benefit
+    lower_quantile <- head(total_trimmed,i) #trim tail
+    lower_quantile <- head(lower_quantile,-5)
+    upper_quantile <- tail(total_trimmed,i) #trim head
+    upper_quantile <- head(upper_quantile,-5)
+    rbind(upper_quantile,lower_quantile)
+    med_u = median(upper_quantile$overall_survival)
+    med_l = median(lower_quantile$overall_survival)
+    if (i<10)
+    {difference_survival_list[i] <- NA}
+    else
+    {difference_survival_list[i] <- med_u - med_l}
+  }
+  namefile = paste(path,"Difference_mean_survival_quantiles_", which_data, ".tiff")
+  tiff(namefile, width = 8, height = 6, units = 'in', res = 500)
+  plot(as.numeric(difference_survival_list), type = "l", 
+       xlab = "Number of patients in each extreme quantile",
+       ylab = "Difference in mean survival")
+  dev.off()
+  
+  difference_survival_list = list()
+  total_trimmed <- total[order(total$nonsynonymous),]
+  for (i in 1:50)
+  {
+    ### Plot number of nonsynonymous mutations against benefit
+    lower_quantile <- head(total_trimmed,i) #trim tail
+    lower_quantile <- head(total_trimmed,i) #trim tail
+    upper_quantile <- tail(total_trimmed,i) #trim head
+    rbind(upper_quantile,lower_quantile)
+    med_u = mean(upper_quantile$overall_survival)
+    med_l = mean(lower_quantile$overall_survival)
+    if (i<10)
+    {difference_survival_list[i] <- NA}
+    else
+    {difference_survival_list[i] <- med_u - med_l}
+  }
+  namefile = paste(path,"Difference_mean_survival_quantiles_", which_data, ".tiff")
+  tiff(namefile, width = 8, height = 6, units = 'in', res = 500)
+  plot(as.numeric(difference_survival_list), type = "l", 
+       xlab = "Number of patients in each extreme quantile",
+       ylab = "Difference in mean survival")
+  dev.off()
+  
+  namefile = paste(path,"Survival_analysis_quantiles", which_data, ".tiff")
+  tiff(namefile, width = 8, height = 6, units = 'in', res = 500)
+  
+  list_p_values = list()
+  for (i in 1:50)
+  {
+    ### Plot number of nonsynonymous mutations against benefit
+    lower_quantile <- head(total_trimmed,i) #trim tail
+    upper_quantile <- tail(total_trimmed,i) #trim head
+    total_subset <- rbind(upper_quantile,lower_quantile)
+    real_test <- survdiff(Surv(total_subset$overall_survival, total_subset$dead) ~ total_subset$nonsynonymous > min(upper_quantile$nonsynonymous))
+    list_p_values[i] <- round(1 - pchisq(real_test$chisq, length(real_test$n) - 1),4)
+  }
+
   title_plot = paste("Log-rank p-value = ", p.val)
-  over_string = paste(">", mutation_discriminant, " mutations")
-  under_string = paste("<", mutation_discriminant, " mutations")
-  total_Mut_over = total[which(total$nonsynonymous > mutation_discriminant),] 
+  total_Mut_over = upper_quantile
   mini.surv2 <- survfit(Surv(total_Mut_over$overall_survival , total_Mut_over$dead)~ 1, conf.type="none")
   plot(mini.surv2, mark.time = T, col = "red", main = which_data, xlab = "Time in days",
        ylab ="Proportion of survivors")
-  total_Mut_under = total[which(nonsynonymous <= mutation_discriminant),] 
+  total_Mut_under = lower_quantile
   mini.surv2 <- survfit(Surv(total_Mut_under$overall_survival , total_Mut_under$dead)~ 1, conf.type="none")
   lines(mini.surv2, mark.time = T, col = "blue")
   legend("topright", # places a legend at the appropriate place 
@@ -354,77 +728,67 @@ if (survival_analysis == T)
   rm(over_string, under_string, total_Mut_over, mini.surv2)
   }
 
+
+#####################
+# Survival Analysis #
+#####################
+if (params_tests[3] == T)
+{
+  namefile = paste(path,"Survival_analysis_", which_data, ".tiff")
+  tiff(namefile, width = 8, height = 6, units = 'in', res = 500)
+  real_test <- survdiff(Surv(total$overall_survival, total$dead) ~ total$nonsynonymous > params_values[2])
+  p.val <- round(1 - pchisq(real_test$chisq, length(real_test$n) - 1),4)
+  title_plot = paste("Log-rank p-value = ", p.val)
+  over_string = paste(">",  params_values[2], " mutations")
+  under_string = paste("<",  params_values[2], " mutations")
+  total_Mut_over = total[which(total$nonsynonymous >  params_values[2]),] 
+  mini.surv2 <- survfit(Surv(total_Mut_over$overall_survival , total_Mut_over$dead)~ 1, conf.type="none")
+  plot(mini.surv2, mark.time = T, col = "red", main = which_data, xlab = "Time in days",
+       ylab ="Proportion of survivors")
+  total_Mut_under = total[which(total$nonsynonymous <=  params_values[2]),] 
+  mini.surv2 <- survfit(Surv(total_Mut_under$overall_survival , total_Mut_under$dead)~ 1, conf.type="none")
+  lines(mini.surv2, mark.time = T, col = "blue")
+  legend("topright", # places a legend at the appropriate place 
+         c(under_string,over_string, title_plot), # puts text in the legend
+         pch = c(".",".", ""), # gives the legend appropriate symbols (lines)
+         lwd=c(2.5,2.5),col=c("blue", "red", "white")) # gives the legend lines the correct color and width
+  dev.off()
+  rm(over_string, under_string, total_Mut_over, mini.surv2)
+}
+
+
 #####################
 # Permutation Tests #
 #####################
-if (permutation_tests_MW == T)
-{
-# Mann_Whitney (benefit vs no benefit)
-real_test <- wilcox.test(na.omit(total_benefit$nonsynonymous), na.omit(total_nobenefit$nonsynonymous))
-real_W <- as.numeric(as.character(real_test$statistic))
-list_i = list()
-list_W= vector()
-j = 1
-try(
-for (i in 1:number_of_simulations)
-{
-  all_nonsynonymous <- append(na.omit(total_benefit$nonsynonymous), na.omit(total_nobenefit$nonsynonymous))
-  all_nonsynonymous = sample(all_nonsynonymous)
-  total_benefit_shuffled = all_nonsynonymous[1:length(na.omit(total_benefit$nonsynonymous))]
-  total_nobenefit_shuffled = na.omit(all_nonsynonymous[length(na.omit(total_benefit$nonsynonymous))+1:length(all_nonsynonymous)])
-  res <- wilcox.test(total_benefit_shuffled, total_nobenefit_shuffled)
-  W = as.numeric(as.character(res$statistic))
-  list_i[j] = i
-  list_W[j] = W
-  j = j+1
-})
-namefile4 = paste("Permutation_Mann-Whitney_", which_data, ".jpg")
-jpeg(namefile4)
-h <- hist(list_W, breaks = number_of_simulations/50, main = which_data, xlab = "W statisitics", 
-     xlim = c(min(list_W),max(real_W + real_W/20, max(list_W))))
-#xfit<-seq(min(list_W),max(real_W + real_W/20, max(list_W)),length=40) 
-#yfit<-dnorm(xfit,mean=mean(list_W),sd=sd(list_W)) 
-#yfit <- yfit*diff(h$mids[1:2])*length(list_W) 
-#lines(xfit, yfit, col="blue", lwd=2)
-abline(v= real_W, col = 'red')
-pvalue_comp = length(which(list_W > real_W))/number_of_simulations
-pvalue = paste("p-value = ",pvalue_comp)
-legend("topright", # places a legend at the appropriate place 
-       c(pvalue), # puts text in the legend
-       pch = c(".")) # gives the legend lines the correct color and width
-dev.off()
-rm(real_test,real_W,list_i,list_W,j,all_nonsynonymous, total_benefit_shuffled,total_nobenefit_shuffled,res,
-   pvalue_comp,pvalue )
-}
 
-if (permutation_tests_LR == T)
+if (params_tests[5] == T)
 {
 # Log-rank (benefit vs no benefit)
-real_test <- survdiff(Surv(overall_survival, dead) ~ nonsynonymous > mutation_discriminant)
+real_test <- survdiff(Surv(total$overall_survival, total$dead) ~ total$nonsynonymous > params_values[2])
 real_Z <- as.numeric(as.character(((real_test$obs[1]-real_test$exp[1])^2)/real_test$exp[1] + ((real_test$obs[2]-real_test$exp[2])^2)/real_test$exp[2]))
 list_i = list()
 list_Z= vector()
 j = 1
 try(
-  for (i in 1:number_of_simulations)
+  for (i in 1:params_values[1])
   {
-    overall_survival_shuffled = sample(overall_survival)
-    res <- survdiff(Surv(overall_survival_shuffled, dead) ~ nonsynonymous > mutation_discriminant)
+    overall_survival_shuffled = sample(total$overall_survival)
+    res <- survdiff(Surv(overall_survival_shuffled, total$dead) ~ total$nonsynonymous > params_values[2])
     Z = as.numeric(as.character(((res$obs[1]-res$exp[1]))/res$exp[1] + ((res$obs[2]-res$exp[2]))/res$exp[2]))
     list_i[j] = i
     list_Z[j] = Z
     j = j+1
   })
-namefile5 = paste("Permutation_Log-Rank_",which_data, ".jpg")
-jpeg(namefile5)
-h <- hist(list_Z, breaks = number_of_simulations/50, main = which_data, xlab = "Z statisitics", 
+namefile = paste(path, "Permutation_Log_rank", which_data, ".tiff")
+tiff(namefile, width = 8, height = 6, units = 'in', res = 500)
+h <- hist(list_Z, breaks = params_values[1]/50, main = which_data, xlab = "Z statisitic", 
           xlim = c(min(list_Z),max(real_Z + real_Z/20, max(list_Z))))
 #xfit<-seq(min(list_Z),max(real_Z + real_Z/20, max(list_Z)),length=40) 
 #yfit<-dnorm(xfit,mean=mean(list_Z),sd=sd(list_Z)) 
 #yfit <- yfit*diff(h$mids[1:2])*length(list_Z) 
 #lines(xfit, yfit, col="blue", lwd=2)
 abline(v= real_Z, col = 'red')
-pvalue_comp = length(which(list_Z > real_Z))/number_of_simulations
+pvalue_comp = length(which(list_Z > real_Z))/params_values[1]
 pvalue = paste("p-value = ",pvalue_comp)
 legend("topright", # places a legend at the appropriate place 
        c(pvalue), # puts text in the legend
@@ -433,41 +797,21 @@ dev.off()
 rm(list_i ,list_Z, real_test, real_Z, pvalue_comp, overall_survival_shuffled, res, Z, pvalue)
 }
 
-if (permutation_tests_LR_multiple_mut == T)
-{
-  pvalue_comp = vector()
-  mut_chosen_list = vector()
-  k = 0
-  try(
-  for (mut_chosen in (min(na.omit(nonsynonymous))):(max(na.omit(nonsynonymous))))
-    {
-    real_test <- survdiff(Surv(overall_survival, dead) ~ nonsynonymous > mut_chosen)
-    real_Z <- as.numeric(as.character(((real_test$obs[1]-real_test$exp[1])^2)/real_test$exp[1] + ((real_test$obs[2]-real_test$exp[2])^2)/real_test$exp[2]))
-    list_i = list()
-    list_Z= vector()
-    j = 1
-      for (i in 1:number_of_simulations)
-      {
-        overall_survival_shuffled = sample(overall_survival)
-        res <- survdiff(Surv(overall_survival_shuffled, dead) ~ nonsynonymous > mut_chosen)
-        Z = as.numeric(as.character(((res$obs[1]-res$exp[1]))/res$exp[1] + ((res$obs[2]-res$exp[2]))/res$exp[2]))
-        list_i[j] = i
-        list_Z[j] = Z
-        j = j+1
-      }
-    pvalue_comp[k] = length(which(list_Z > real_Z))/number_of_simulations
-    mut_chosen_list[k] = mut_chosen
-    k = k+1
-  })
-  namefile6 = paste("Permutation_Log-Rank_Multiple",which_data, ".jpg")
-  jpeg(namefile6)
-  plot(mut_chosen_list, pvalue_comp, xlim = c(min(na.omit(nonsynonymous)),max(na.omit(nonsynonymous))), 
-       ylim = c(min(pvalue_comp), max(pvalue_comp)), pch = ".",
-       xlab = "Discriminant number of mutations", ylab = "p_value")
-  lines(mut_chosen_list, pvalue_comp)
-  dev.off()
-  rm(list_i ,list_Z, real_test, real_Z, pvalue_comp, mut_chosen_list, mut_chosen, overall_survival_shuffled, res, Z)
-}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 ######################
@@ -654,12 +998,8 @@ if (which_data != "Rizvi")
   wilcox.test(total_stage3$overall_survival, total_stage4$overall_survival)
 }
 }
-
-
 Done_string = paste(which_data, " done!")
 print(Done_string)
-}
-}
 
 
 if(FALSE) {
@@ -696,3 +1036,24 @@ points(sort(na.omit(total_nobenefit$nonsynonymous)), col = "red", xlab = "",
        pch = ".", cex = 5)
 abline(a=mean(na.omit(total_nobenefit$nonsynonymous)), b=0, col = "red")
 dev.off() }
+
+
+###############
+# Random data #
+###############
+par(mfrow=c(1, 2))
+# create dataset with 1000 normally distributed points
+df <- data.frame(x = rnorm(100, mean(log(total$nonsynonymous)), sd(log(total$nonsynonymous))),
+                 y = rpois(100,mean(log(total$overall_survival))))
+# create a ggplot2 scatterplot
+p <- ggplot(df, aes(x, y)) + geom_point() + theme_classic()
+# add marginal histograms
+ggExtra::ggMarginal(p, type = "histogram")
+
+# create dataset with 1000 normally distributed points
+df <- data.frame(x = log(total$nonsynonymous), y = (total$overall_survival))
+# create a ggplot2 scatterplot
+p <- ggplot(df, aes(x, y)) + geom_point() + theme_classic()
+# add marginal histograms
+ggExtra::ggMarginal(p, type = "histogram")
+
