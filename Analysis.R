@@ -15,7 +15,7 @@ params_values[1] = 10000
 # Discriminant number of mutation to perform the survival analysis
 params_values[2] = 102
 # Redefine clinical classification
-redef = F
+redef = T
 
 ###############
 # Run program #
@@ -44,8 +44,11 @@ plot_nonlog(list(total_hugo, total_snyder, total_vanallen))
 plot_log(list(total_hugo, total_snyder, total_vanallen))
 # Boxplots
 boxplot_MW()
-# Boxplots
+# Permutation MW
 permutation_MW(list(total_hugo, total_snyder, total_vanallen))
+# Compare effect to random distribution
+rand_comp(list(total_hugo, total_snyder, total_vanallen))
+#
 
 ########################
 # Functions to compile #
@@ -528,26 +531,122 @@ permutation_MW <- function(list_arg)
   }
 }
 
+#####################
+# Contingency table #
+#####################
+# To compare with random data when benefit is not redefined
 
+cont_table <- function(list_arg)
+{
+  for (data in list_arg)
+  {  
+  list_i = list()
+  list_p = list()
+  h1 <- hist(log(data$nonsynonymous), plot = F)
+  for (i in 1:1000)
+  {
+    x<-rnorm(length(data$overall_survival), 
+             mean(log(data$nonsynonymous)), 
+             sd(log(data$nonsynonymous)))
+    h2 <- hist(x, plot = F)
+    breaks_ = sort(unique(append(h1$breaks, h2$breaks)))
+    h1 <- hist(log(data$nonsynonymous), breaks = breaks_, plot = F)
+    h2 <- hist(x, breaks = breaks_, plot = F)
+    cont_table = t(cbind(h1$counts, h2$counts))
+    cont_table = cont_table[,which(!apply(cont_table,2,FUN = function(x){all(x == 0)}))]
+    list_i[i]= i
+    list_p[i]= as.numeric(chisq.test(cont_table, simulate.p.value = T, B = 20000)$p.value)
+    }
+  hist(sort(as.numeric(list_p)), breaks = 100)
+  }
+}
+
+
+########################################################
+# Comparison with radom data when benefit is redefined #
+########################################################
+
+rand_comp <- function(list_arg)
+{
+  for (data in list_arg)
+  {  
+    list_p = list()
+    for (i in 1:as.numeric(params_values[1]))
+    {
+    y<-data$overall_survival
+    x<-rnorm(length(data$overall_survival), 
+             mean(log(data$nonsynonymous)), 
+             sd(log(data$nonsynonymous)))
+    response = y
+    response[which(y > 365)] =  "Responders"
+    response[which(y < 365)] =  "Nonresponders"
+    rand_data = as.data.frame(cbind(y,x,response),
+                              as.is = F,
+                              stringsAsFactors = FALSE)
+    list_p[i] = as.numeric(wilcox.test(as.numeric(rand_data[which(rand_data$response == "Responders"),]$x), 
+                as.numeric(rand_data[which(rand_data$response == "Nonresponders"),]$x))$p.value)
+    }
+    real_p = as.numeric(unlist(wilcox.test(as.numeric(data[which(data$group == "Responders"),]$nonsynonymous),
+                as.numeric(data[which(data$group == "Nonresponders"),]$nonsynonymous))$p.value))
+    p_value = sum(list_p < 0.05)/as.numeric(params_values[1])
+    print(p_value)
+    h <- hist(sort(as.numeric(list_p)), breaks = as.numeric(params_values[1])/50, main = 'Mann-Whitney p-values for ')
+    abline(v = real_p, col = 'red')
+  }
+}
+
+####################
+# Plot random data #
+####################
+
+rand_comp <- function(list_arg)
+{
+scatterhist = function(x, y, xlab="", ylab=""){
+    zones=matrix(c(2,0,1,3), ncol=2, byrow=TRUE)
+    layout(zones, widths=c(4/5,1/5), heights=c(1/5,4/5))
+    xhist = hist(x, plot=FALSE)
+    yhist = hist(y, plot=FALSE)
+    top = max(c(xhist$counts, yhist$counts))
+    par(mar=c(3,3,1,1))
+    plot(x,y,xlab = "Log number of nonsynonymous mutations", ylab = "Overall survival (in days)")
+    par(mar=c(0,3,1,1))
+    barplot(xhist$counts, axes=FALSE, ylim=c(0, top), space=0)
+    par(mar=c(3,0,1,1))
+    barplot(yhist$counts, axes=FALSE, xlim=c(0, top), space=0, horiz=TRUE)
+    par(oma=c(3,3,0,0))
+    mtext(xlab, side=1, line=1, outer=TRUE, adj=0,     at=.8 * (mean(x) - min(x))/(max(x)-min(x)))
+    mtext(ylab, side=2, line=1, outer=TRUE, adj=0,     at=(.8 * (mean(y) - min(y))/(max(y) - min(y))))
+  }
+  
+  namefile = paste(path, "Random_data", ".tiff")
+  tiff(namefile, width = 8, height = 6, units = 'in', res = 500)
+  y<-data$overall_survival
+  x<-rnorm(length(data$overall_survival), 
+           mean(log(data$nonsynonymous)), 
+           sd(log(data$nonsynonymous)))
+  scatterhist(x,y)
+  dev.off()
+}
+  
 
 #####################
 # Trimming analysis #
 #####################
-if (params_tests[7] == T)
-{  
+trim_analysis <- function(list_arg)
+{ 
+  for (data in list_arg)
+  {   
   par(mfrow=c(1,1))
-  namefile = paste(path,"Trimmed_data_", which_data, ".tiff")
-  tiff(namefile, width = 8, height = 6, units = 'in', res = 500)
+  #namefile = paste(path,"Trimmed_data_", which_data, ".tiff")
+  #tiff(namefile, width = 8, height = 6, units = 'in', res = 500)
   list_wilcox_trimmed = list()
-  total_trimmed <- total[order(total$nonsynonymous),]
-  for (i in 1:floor(length(total[which(total$group == "Responders"),]$nonsynonymous)))
+  data_trimmed <- data[order(data$nonsynonymous),]
+  for (i in 1:floor(length(data[which(data$group == "Responders"),]$nonsynonymous)))
   {
-    ### Plot number of nonsynonymous mutations against benefit
-    total_trimmed <- head(total_trimmed,-1) #trim tail
+    data_trimmed <- head(data_trimmed,-1) #trim tail
     #total_trimmed <- tail(total_trimmed,-1) #trim head
-    print(total_trimmed$nonsynonymous)
-    list_wilcox_trimmed[i] <- wilcox.test(total_trimmed[which(total_trimmed$group == "Responders"),]$nonsynonymous, 
-                                          total_trimmed[which(total_trimmed$group == "Nonresponders"),]$nonsynonymous)$p.value
+    list_wilcox_trimmed[i] <- wilcox.test(data_trimmed[which(data_trimmed$group == "Responders"),]$nonsynonymous, 
+                                          data_trimmed[which(data_trimmed$group == "Nonresponders"),]$nonsynonymous)$p.value
   }
 
   plot(as.numeric(list_wilcox_trimmed), type = 'l', 
@@ -557,7 +656,14 @@ if (params_tests[7] == T)
          as.numeric(list_wilcox_trimmed)[which(as.numeric(list_wilcox_trimmed) == min(as.numeric(list_wilcox_trimmed)), arr.ind = TRUE)],
          pch = "*", col = "red", cex = 2)
   abline(v = 2, col = 'red') 
-  dev.off()
+  }
+}
+
+
+
+
+
+
   
   namefile = paste(path,"Trimmed_boxplot_", which_data, ".tiff")
   tiff(namefile, width = 8, height = 6, units = 'in', res = 500)
@@ -631,6 +737,13 @@ if (params_tests[7] == T)
           names = c("Subset", "Non-responders", "Responders"))
   dev.off()
 }
+
+
+
+
+
+
+
 
 
 ########################
@@ -753,58 +866,6 @@ if (params_tests[11]  == T)
   dev.off()
 }
 
-#####################
-# Contingency table #
-#####################
-
-if (params_tests[12]==1){
-scatterhist = function(x, y, xlab="", ylab=""){
-  zones=matrix(c(2,0,1,3), ncol=2, byrow=TRUE)
-  layout(zones, widths=c(4/5,1/5), heights=c(1/5,4/5))
-  xhist = hist(x, plot=FALSE)
-  yhist = hist(y, plot=FALSE)
-  top = max(c(xhist$counts, yhist$counts))
-  par(mar=c(3,3,1,1))
-  plot(x,y,xlab = "Log number of nonsynonymous mutations", ylab = "Overall survival (in days)")
-  par(mar=c(0,3,1,1))
-  barplot(xhist$counts, axes=FALSE, ylim=c(0, top), space=0)
-  par(mar=c(3,0,1,1))
-  barplot(yhist$counts, axes=FALSE, xlim=c(0, top), space=0, horiz=TRUE)
-  par(oma=c(3,3,0,0))
-  mtext(xlab, side=1, line=1, outer=TRUE, adj=0,     at=.8 * (mean(x) - min(x))/(max(x)-min(x)))
-  mtext(ylab, side=2, line=1, outer=TRUE, adj=0,     at=(.8 * (mean(y) - min(y))/(max(y) - min(y))))
-}
-
-  namefile = paste(path="~/", "Random_data", ".tiff")
-  #tiff(namefile, width = 8, height = 6, units = 'in', res = 500)
-  y<-total$overall_survival
-  x<-rnorm(length(total$overall_survival), 
-           mean(log(total$nonsynonymous)), 
-           sd(log(total$nonsynonymous)))
-  scatterhist(x,y)
-  #dev.off()
-  
-  list_i = list()
-  list_p = list()
-  h1 <- hist(log(total$nonsynonymous), plot = F)
-  for (i in 1:1000)
-  {
-  x<-rnorm(length(total$overall_survival), 
-           mean(log(total$nonsynonymous)), 
-           sd(log(total$nonsynonymous)))
-  h2 <- hist(x, plot = F)
-  breaks_ = sort(unique(append(h1$breaks, h2$breaks)))
-  h1 <- hist(log(total$nonsynonymous), breaks = breaks_, plot = F)
-  h2 <- hist(x, breaks = breaks_, plot = F)
-  cont_table = t(cbind(h1$counts, h2$counts))
-  list_i[i]= i
-  list_p[i]= as.numeric(fisher.test(cont_table, simulate.p.value = T, B = 20000)$p.value)
-  }
-  par(mfrow=c(1,1))
-  hist(sort(as.numeric(list_p)), breaks = 10)
-}
-rm(total)
-}
 
 
 
