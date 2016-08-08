@@ -15,7 +15,7 @@ params_values[1] = 10000
 # Discriminant number of mutation to perform the survival analysis
 params_values[2] = 102
 # Redefine clinical classification
-redef = T
+redef = F
 
 ###############
 # Run program #
@@ -38,17 +38,26 @@ if (redef == T)
 total_hugo = total[which(total$dataset == "mel1"),]
 total_snyder = total[which(total$dataset == "mel2"),]
 total_vanallen = total[which(total$dataset == "mel3"),]
-total_rizvi = total[which(total$dataset == "Rizvi"),]
+total_rizvi = total[which(total$dataset == "nslc"),]
 # Plot mutational load VS survival
-plot_nonlog(list(total_hugo, total_snyder, total_vanallen))
-plot_log(list(total_hugo, total_snyder, total_vanallen))
+plot_nonlog(list(total_hugo, total_snyder, total_vanallen, total_rizvi))
+plot_log(list(total_hugo, total_snyder, total_vanallen, total_rizvi))
 # Boxplots
 boxplot_MW()
 # Permutation MW
 permutation_MW(list(total_hugo, total_snyder, total_vanallen))
 # Compare effect to random distribution
 rand_comp(list(total_hugo, total_snyder, total_vanallen))
-#
+# Contingency table to compare with random normal distribution
+cont_table(list(total_hugo, total_snyder, total_vanallen))
+# To plot random data
+rand_plot(list(total_hugo, total_snyder, total_vanallen))
+# Analysis by trimming data
+trim_analysis(list(total_hugo, total_snyder, total_vanallen))
+# Correlation plots
+corr_plots(list(total_hugo, total_snyder, total_vanallen))
+
+
 
 ########################
 # Functions to compile #
@@ -62,7 +71,7 @@ total <- data.frame(
   date = as.Date(character()),
   stringsAsFactors=FALSE
 )
-for (which_data in c("mel1","mel2", "mel3"))
+for (which_data in c("mel1","mel2", "mel3", "nslc"))
 {
 params_data = list()
 # Import and rearrange Van Allen data
@@ -119,7 +128,7 @@ if (which_data == "mel2")
 
   
 # Import and rearrange RIZVI data
-if (which_data == "Rizvi")
+if (which_data == "nslc")
 {
   data = read.csv("Rizvi.csv")
   nonsynonymous <- data$Nonsyn.
@@ -132,7 +141,7 @@ if (which_data == "Rizvi")
   gender <- data$Sex
   params_data[8]  = "M"
   params_data[9]  = "F"
-  stage <- data$stage
+  stage <- replicate(length(as.numeric(nonsynonymous)), "IV")
   rm(data)
 }
   
@@ -170,8 +179,14 @@ group2 = as.character(group2)
 group = as.character(group) 
 group[which(group == as.character(params_data[1]))] = "Responders"
 group[which(group == as.character(params_data[2]))] = "Nonresponders"
+if (which_data == "nslc")
+{
+group2[which(as.numeric((overall_survival)) >= 2*365)] = "Responders"
+group2[which(as.numeric((overall_survival)) < 2*365)] = "Nonresponders"
+} else {
 group2[which(as.numeric((overall_survival)) >= 365)] = "Responders"
 group2[which(as.numeric((overall_survival)) < 365)] = "Nonresponders"
+}
 
 
 total_temp = as.data.frame(cbind(as.numeric((nonsynonymous)), 
@@ -225,8 +240,17 @@ plot_nonlog <- function(list_arg)
          ylab= "Overall Survival", pch = 16,col = "cyan3", cex = 1, #main = which_data,      
          xlim = c(min(data$nonsynonymous),max(data$nonsynonymous)), 
          ylim= c(min(na.omit(data$overall_survival)),max(na.omit(data$overall_survival))))
-    abline(h=365, lty = 2, col = "purple")
-    text(max(data$nonsynonymous)/2, 420, "OS = 1 year", cex = 0.9, col = "purple")
+
+    if (which_data = "nslc")
+    {
+      abline(h=2*365, lty = 2, col = "purple")
+      text(max(data$nonsynonymous)/2, 365*2+55, "OS = 2 year", cex = 0.9, col = "purple")
+    }
+    else
+    {
+      abline(h=365, lty = 2, col = "purple")
+      text(max(data$nonsynonymous)/2, 420, "OS = 1 year", cex = 0.9, col = "purple")
+    }
     points(data[which(data$group == "Responders"),][which(data[which(data$group == "Responders"),]$dead == 1),]$nonsynonymous, 
            data[which(data$group == "Responders"),][which(data[which(data$group == "Responders"),]$dead == 1),]$overall_survival,
            pch = 1, cex = 1)
@@ -281,20 +305,26 @@ plot_log <- function(list_arg)
   tiff(namefile, width = 8, height = 6, units = 'in', res = 500)
   plot(log(data[which(data$group == "Responders"),]$nonsynonymous), data[which(data$group == "Responders"),]$overall_survival,
        xlab= "Log number of nonsynonymous mutations",
-       ylab= "Overall Survival", pch = 16,col = "cyan3", cex = 1, main = which_data,      
+       ylab= "Overall Survival", pch = 16,col = "cyan3", cex = 1.2, main = which_data,      
        xlim = c(min(log(data$nonsynonymous)),max(log(data$nonsynonymous))), 
        ylim= c(min(na.omit(data$overall_survival)),max(na.omit(data$overall_survival))))
-  abline(h=365, lty = 2, col = "purple")
-  text(min(log(data$nonsynonymous))+ 0.2, 300, "OS = 1 year", cex = 0.9, col = "purple")
+  if (which_data == "nslc")
+  {
+    abline(h=2*365, lty = 2, col = "purple")
+    text(max(data$nonsynonymous)/2, 365*2+55, "OS = 2 year", cex = 1.2, col = "purple")
+  } else   {
+    abline(h=365, lty = 2, col = "purple")
+    text(max(data$nonsynonymous)/2, 420, "OS = 1 year", cex = 1.2, col = "purple")
+  }
   points(log(data[which(data$group == "Responders"),][which(data[which(data$group == "Responders"),]$dead == 1),]$nonsynonymous), 
        data[which(data$group == "Responders"),][which(data[which(data$group == "Responders"),]$dead == 1),]$overall_survival,
-       pch = 1, cex = 1)
+       pch = 1, cex = 1.2)
   points(log(data[which(data$group == "Nonresponders"),]$nonsynonymous), 
        data[which(data$group == "Nonresponders"),]$overall_survival, col ="red",
-       pch = 16, cex = 1)
+       pch = 16, cex = 1.2)
   points(log(data[which(data$group == "Nonresponders"),][which(data[which(data$group == "Nonresponders"),]$dead == 1),]$nonsynonymous), 
        data[which(data$group == "Nonresponders"),][which(data[which(data$group == "Nonresponders"),]$dead == 1),]$overall_survival, xlab= "Number of Nonsynonymous mutations",
-       ylab= "Overall Survival", pch = 1, cex = 1)
+       ylab= "Overall Survival", pch = 1, cex = 1.2)
 #legend("topright", # places a legend at the appropriate place 
 #       c("Responders","Non-responders", "Dead"), # puts text in the legend
 #       pch = c(16,16,1),
@@ -302,10 +332,10 @@ plot_log <- function(list_arg)
   if (which_data == "mel2"|| which_data == "Snyder2")
     {
     points(log(data[special_patients,]$nonsynonymous), data[special_patients,]$overall_survival, 
-         col ="grey", cex= 1, pch = 16)
+         col ="grey", cex= 1.2, pch = 16)
     points(log(data[special_patients,][which(data[special_patients,]$dead == 1),]$nonsynonymous), 
          data[special_patients,][which(data[special_patients,]$dead == 1),]$overall_survival
-         , pch = 1, cex = 1)
+         , pch = 1, cex = 1.2)
   #  legend("topright", # places a legend at the appropriate place 
   #         c("Responders","Non-responders","Dead", "Reassigned"), # puts text in the legend
   #         pch = c(16,16,1,16), # gives the legend appropriate symbols (lines),
@@ -315,10 +345,10 @@ plot_log <- function(list_arg)
   if (which_data == "mel3")
     {
     points(log(data[special_patients,]$nonsynonymous), data[special_patients,]$overall_survival, 
-           col ="grey", cex= 1, pch = 16)
+           col ="grey", cex= 1.2, pch = 16)
     points(log(data[special_patients,][which(data[special_patients,]$dead == 1),]$nonsynonymous), 
            data[special_patients,][which(data[special_patients,]$dead == 1),]$overall_survival
-           , pch = 1, cex = 1)
+           , pch = 1, cex = 1.2)
     #  legend("topright", # places a legend at the appropriate place 
     #         c("Responders","Non-responders","Dead", "Subset"), # puts text in the legend
     #         pch = c(16,16,1,16), # gives the legend appropriate symbols (lines),
@@ -562,9 +592,9 @@ cont_table <- function(list_arg)
 }
 
 
-########################################################
-# Comparison with radom data when benefit is redefined #
-########################################################
+#########################################################
+# Comparison with random data when benefit is redefined #
+#########################################################
 
 rand_comp <- function(list_arg)
 {
@@ -599,7 +629,7 @@ rand_comp <- function(list_arg)
 # Plot random data #
 ####################
 
-rand_comp <- function(list_arg)
+rand_plot <- function(list_arg)
 {
 scatterhist = function(x, y, xlab="", ylab=""){
     zones=matrix(c(2,0,1,3), ncol=2, byrow=TRUE)
@@ -628,11 +658,49 @@ scatterhist = function(x, y, xlab="", ylab=""){
   dev.off()
 }
   
+#####################
+# Correlation plots #
+#####################
+corr_plots <- function(list_arg)
+{ 
+  for (data in list_arg)
+  {
+    which_data = data$dataset[1]
+    namefile = paste(path, paste("Correlations_", which_data), ".tiff")
+    tiff(namefile, width = 4, height = 8, units = 'in', res = 500)
+    par(mfrow=c(1,1))
+    spearman_list = list()
+    pearson_list = list()
+    y<-data$overall_survival
+    for (i in 1:as.numeric(params_values[1]))
+    {
+      x<-rnorm(length(data$overall_survival), 
+             mean(log(data$nonsynonymous)), 
+             sd(log(data$nonsynonymous)))
+      pearson_list[i] = as.numeric(cor.test(x,y, method = 'pearson')$estimate)
+      spearman_list[i] = as.numeric(cor.test(x,y, method = 'spearman')$estimate)
+    }
+    Pearson_data = cbind(as.numeric(pearson_list), 
+          replicate(length(as.numeric(pearson_list)), 'Pearson'))
+    Spearman_data = cbind(as.numeric(spearman_list), 
+                          replicate(length(as.numeric(spearman_list)), 'Spearman'))
+    cor_data = as.data.frame(rbind(Spearman_data, Pearson_data))
+    boxplot(as.numeric(as.character(cor_data$V1))~(cor_data$V2), col = c('orange', 'pink'),
+            names = c('Pearson', 'Spearman'), main = which_data, ylim = c(-1,1),
+            ylab = "Correlation coefficient")
+    real_points = as.data.frame(cbind(c(as.numeric(cor.test(data$nonsynonymous,y, method = 'pearson')$estimate),
+                                        as.numeric(cor.test(data$nonsynonymous,y, method = 'spearman')$estimate)),
+                                      c('Pearson', 'Spearman')))
+    stripchart(as.numeric(as.character(real_points$V1)) ~ as.factor(real_points$V2),
+               vertical = TRUE, method = "stack", add = TRUE, pch = '*', col = 'red', cex = 3)
+    dev.off()
+  }
+}
 
 #####################
 # Trimming analysis #
 #####################
-trim_analysis <- function(list_arg)
+trim_analysis_head <- function(list_arg)
 { 
   for (data in list_arg)
   {   
@@ -641,110 +709,75 @@ trim_analysis <- function(list_arg)
   #tiff(namefile, width = 8, height = 6, units = 'in', res = 500)
   list_wilcox_trimmed = list()
   data_trimmed <- data[order(data$nonsynonymous),]
+  #25
+  stack <- data.frame(
+    ticker=character(),
+    value=numeric(),
+    stringsAsFactors=FALSE)  
   for (i in 1:floor(length(data[which(data$group == "Responders"),]$nonsynonymous)))
   {
-    data_trimmed <- head(data_trimmed,-1) #trim tail
-    #total_trimmed <- tail(total_trimmed,-1) #trim head
+    #data_trimmed <- head(data_trimmed,-1) #trim tail
+    data_trimmed <- tail(data_trimmed,-1) #trim head
     list_wilcox_trimmed[i] <- wilcox.test(data_trimmed[which(data_trimmed$group == "Responders"),]$nonsynonymous, 
                                           data_trimmed[which(data_trimmed$group == "Nonresponders"),]$nonsynonymous)$p.value
+    stack = rbind(stack, list(length(data_trimmed[which(data_trimmed$group == "Responders"),]$nonsynonymous),
+      length(data_trimmed[which(data_trimmed$group == "Nonresponders"),]$nonsynonymous)))
   }
-
-  plot(as.numeric(list_wilcox_trimmed), type = 'l', 
+  prop_tabl = prop.table(t(stack), margin = 2)
+  
+  par(mar=c(5,4,4,5)+.1)
+  plot(as.numeric(list_wilcox_trimmed),
        xlab = "Number of values trimmed on each side",
-       ylab = "P-value (Mann-Whitney test)")
-  points(which(as.numeric(list_wilcox_trimmed) == min(as.numeric(list_wilcox_trimmed)), arr.ind = TRUE),
-         as.numeric(list_wilcox_trimmed)[which(as.numeric(list_wilcox_trimmed) == min(as.numeric(list_wilcox_trimmed)), arr.ind = TRUE)],
-         pch = "*", col = "red", cex = 2)
-  abline(v = 2, col = 'red') 
+       ylab = "P-value (Mann-Whitney test)", type = 'l', col = 'black') 
+  abline(h=0.05)
+  points(as.numeric(list_wilcox_trimmed), pch = 16, cex = 0.7)
+  par(new=TRUE)
+  plot(prop_tabl[2,],xaxt="n",yaxt="n",xlab="",ylab="", type = 'l', col = 'red')  
+  points(prop_tabl[2,], pch = 16, cex = 0.7, col = 'red')  
+  mtext("Proportion of non-responders",side=4,line=3, col = 'red')
+  axis(4)
   }
 }
 
-
-
-
-
-
-  
-  namefile = paste(path,"Trimmed_boxplot_", which_data, ".tiff")
-  tiff(namefile, width = 8, height = 6, units = 'in', res = 500)
-  total_trimmed <- total[order(total$nonsynonymous),]
-  total_trimmed <- head(total_trimmed,-which(as.numeric(list_wilcox_trimmed) == min(as.numeric(list_wilcox_trimmed)), arr.ind = TRUE)) #trim tail
-  total_trimmed <- tail(total_trimmed,-which(as.numeric(list_wilcox_trimmed) == min(as.numeric(list_wilcox_trimmed)), arr.ind = TRUE)) #trim head
-  boxplot(log(total_trimmed$nonsynonymous) ~ as.factor(total_trimmed$group), 
-          data = total_trimmed, lwd = 2, 
-          pwcol = 1 + as.numeric(total_trimmed$dead),offset = .5,
-          ylab = 'Log number of nonymomymous mutations',
-          xlab = 'Response categories',
-          col = c("grey", "red", "cyan3"),
-          names = c("Subset", "Non-responders", "Responders"))
-  dev.off()
-  
-  list_wilcox_trimmed = list()
-  total_trimmed <- total[order(total$nonsynonymous),]
-  for (i in 1:floor(length(total[which(total$group == params_data[1]),]$nonsynonymous)))
-  {
-    ### Plot number of nonsynonymous mutations against benefit
-    total_trimmed <- head(total_trimmed,-1) #trim tail
-    list_wilcox_trimmed[i] <- wilcox.test(total_trimmed[which(total_trimmed$group == params_data[1]),]$nonsynonymous, 
-                                          total_trimmed[which(total_trimmed$group == params_data[2]),]$nonsynonymous)$p.value
+trim_analysis_tails <- function(list_arg)
+{ 
+  for (data in list_arg)
+  {   
+    par(mfrow=c(1,1))
+    #namefile = paste(path,"Trimmed_data_", which_data, ".tiff")
+    #tiff(namefile, width = 8, height = 6, units = 'in', res = 500)
+    list_wilcox_trimmed = list()
+    data_trimmed <- data[order(data$nonsynonymous),]
+    #25
+    stack <- data.frame(
+      ticker=character(),
+      value=numeric(),
+      stringsAsFactors=FALSE)  
+    for (i in 1:floor(length(data[which(data$group == "Responders"),]$nonsynonymous)))
+    {
+      data_trimmed <- head(data_trimmed,-1) #trim tail
+      #data_trimmed <- tail(data_trimmed,-1) #trim head
+      list_wilcox_trimmed[i] <- wilcox.test(data_trimmed[which(data_trimmed$group == "Responders"),]$nonsynonymous, 
+                                            data_trimmed[which(data_trimmed$group == "Nonresponders"),]$nonsynonymous)$p.value
+      stack = rbind(stack, list(length(data_trimmed[which(data_trimmed$group == "Responders"),]$nonsynonymous),
+                                length(data_trimmed[which(data_trimmed$group == "Nonresponders"),]$nonsynonymous)))
+    }
+    prop_tabl = prop.table(t(stack), margin = 2)
+    par(new=FALSE)
+    
+    par(mar=c(5,4,4,5)+.1)
+    plot(as.numeric(list_wilcox_trimmed),
+         xlab = "Number of values trimmed on each side",
+         ylab = "P-value (Mann-Whitney test)", type = 'l', col = 'black')
+    abline(h = 0.05)
+    points(as.numeric(list_wilcox_trimmed), pch = 16, cex = 0.7)
+    par(new=TRUE)
+    plot(prop_tabl[1,],xaxt="n",yaxt="n",xlab="",ylab="", type = 'l', col = 'cyan3',col.axis = 'cyan3')
+    points(prop_tabl[1,], pch = 16, cex = 0.7, col = 'cyan3')
+    mtext("Proportion of responders",side=4,line=3, col = 'cyan3')
+    axis(4, col = 'cyan3', col.axis = 'cyan3', col.ticks = 'cyan3')
   }
-  par(mfrow=c(1,1))
-  namefile = paste(path,"Trimmed_right_", which_data, ".tiff")
-  tiff(namefile, width = 8, height = 6, units = 'in', res = 500)
-  plot(as.numeric(list_wilcox_trimmed), type = 'l', 
-       xlab = "Number of values trimmed on the right side",
-       ylab = "P-value (Mann-Whitney test)")
-  points(which(as.numeric(list_wilcox_trimmed) == min(as.numeric(list_wilcox_trimmed)), arr.ind = TRUE),
-         as.numeric(list_wilcox_trimmed)[which(as.numeric(list_wilcox_trimmed) == min(as.numeric(list_wilcox_trimmed)), arr.ind = TRUE)],
-         pch = "*", col = "red", cex = 2)
-  abline(a=0.05, b=0, col = 'red') 
-  dev.off()
-  
-  
-  list_wilcox_trimmed = list()
-  total_trimmed <- total[order(total$nonsynonymous),]
-  for (i in 1:floor(length(total[which(total$group == params_data[1]),]$nonsynonymous)))
-  {
-    ### Plot number of nonsynonymous mutations against benefit
-    total_trimmed <- tail(total_trimmed,-1) #trim tail
-    list_wilcox_trimmed[i] <- wilcox.test(total_trimmed[which(total_trimmed$group == params_data[1]),]$nonsynonymous, 
-                                          total_trimmed[which(total_trimmed$group == params_data[2]),]$nonsynonymous)$p.value
-  }
-  par(mfrow=c(1,1))
-  namefile = paste(path,"Trimmed_right_", which_data, ".tiff")
-  tiff(namefile, width = 8, height = 6, units = 'in', res = 500)
-  plot(as.numeric(list_wilcox_trimmed), type = 'l', 
-       xlab = "Number of values trimmed on the left side",
-       ylab = "P-value (Mann-Whitney test)")
-  points(which(as.numeric(list_wilcox_trimmed) == min(as.numeric(list_wilcox_trimmed)), arr.ind = TRUE),
-         as.numeric(list_wilcox_trimmed)[which(as.numeric(list_wilcox_trimmed) == min(as.numeric(list_wilcox_trimmed)), arr.ind = TRUE)],
-         pch = "*", col = "red", cex = 2)
-  abline(a=0.05, b=0, col = 'red') 
-  dev.off()
-  
-  
-  namefile = paste(path,"Trimmed_boxplot_right_", which_data, ".tiff")
-  tiff(namefile, width = 8, height = 6, units = 'in', res = 500)
-  total_trimmed <- total[order(total$nonsynonymous),]
-  total_trimmed <- head(total_trimmed,-which(as.numeric(list_wilcox_trimmed) == min(as.numeric(list_wilcox_trimmed)), arr.ind = TRUE)) #trim tail
-  total_trimmed <- tail(total_trimmed,-which(as.numeric(list_wilcox_trimmed) == min(as.numeric(list_wilcox_trimmed)), arr.ind = TRUE)) #trim head
-  boxplot(log(total_trimmed$nonsynonymous) ~ as.factor(total_trimmed$group), 
-          data = total_trimmed, lwd = 2, 
-          pwcol = 1 + as.numeric(total_trimmed$dead),offset = .5,
-          ylab = 'Log number of nonymomymous mutations',
-          xlab = 'Response categories',
-          col = c("grey", "red", "cyan3"),
-          names = c("Subset", "Non-responders", "Responders"))
-  dev.off()
 }
-
-
-
-
-
-
-
-
 
 ########################
 # Permutation log-rank #
