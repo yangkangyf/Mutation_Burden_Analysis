@@ -20,7 +20,9 @@ params_values[1] = 10000
 # Discriminant number of mutation to perform the survival analysis
 params_values[2] = 102
 # Redefine clinical classification
-redef = F
+redef = T
+# OS thresh for restratification
+os_thresh = 548
 
 ###############
 # Run program #
@@ -49,7 +51,7 @@ total_rizvi = total[which(total$dataset == "nslc"),]
 #plot_nonlog(list(total_hugo, total_snyder, total_vanallen, total_rizvi))
 plot_log(list(total_hugo, total_snyder, total_vanallen, total_rizvi))
 # Boxplots
-boxplot_MW(list(rbind(total_hugo, total_snyder, total_vanallen), total_rizvi))
+boxplot_MW(list(rbind(total_hugo, total_snyder, total_vanallen)))
 # Permutation MW
 permutation_MW(list(total_hugo, total_snyder, total_vanallen, total_rizvi))
 # Compare effect to random distribution
@@ -193,11 +195,11 @@ group[which(group == as.character(params_data[1]))] = "Responders"
 group[which(group == as.character(params_data[2]))] = "Nonresponders"
 if (which_data == "nslc")
 {
-group2[which(as.numeric((overall_survival)) >= 2*365)] = "Responders"
-group2[which(as.numeric((overall_survival)) < 2*365)] = "Nonresponders"
+group2[which(as.numeric((overall_survival)) >= 2*os_thresh)] = "Responders"
+group2[which(as.numeric((overall_survival)) < 2*os_thresh)] = "Nonresponders"
 } else {
-group2[which(as.numeric((overall_survival)) >= 365)] = "Responders"
-group2[which(as.numeric((overall_survival)) < 365)] = "Nonresponders"
+group2[which(as.numeric((overall_survival)) >= os_thresh)] = "Responders"
+group2[which(as.numeric((overall_survival)) < os_thresh)] = "Nonresponders"
 }
 
 gender2 = as.character(gender)
@@ -524,7 +526,7 @@ boxplot_MW <- function(list_arg)
              as.factor(total_vanallen[which(total_vanallen$dead == 1),]$group), 
              vertical = TRUE, data = total_vanallen[which(total_vanallen$dead == 1),], 
              method = "jitter", add = TRUE, pch = 1, col = 'black', at = c(9,7,8), cex = 0.7)
-  }
+    }
   if (nlevels(as.factor((data)$group))== 2)
     {
     col_ =  c("red", "cyan3") 
@@ -591,7 +593,7 @@ boxplot_MW <- function(list_arg)
     stripchart(log(total_vanallen[which(total_vanallen$dead == 0),]$nonsynonymous) ~ 
                as.factor(total_vanallen[which(total_vanallen$dead == 0),]$group),
                vertical = TRUE, data = total_vanallen[which(total_vanallen$dead == 0),], 
-               method = "jitter", add = TRUE, pch = 16, col = 'black', at = c(8), cex = 0.7)
+               method = "jitter", add = TRUE, pch = 16, col = 'black', at = c(7,8), cex = 0.7)
   
     stripchart(log(total_vanallen[which(total_vanallen$dead == 1),]$nonsynonymous) ~ 
                as.factor(total_vanallen[which(total_vanallen$dead == 1),]$group), 
@@ -602,6 +604,64 @@ boxplot_MW <- function(list_arg)
   } 
   }
 }
+
+
+###########################################################
+# Mann-Whitney p-value against threshold Overall Survival #
+###########################################################
+
+threshold_OS_MW <- function(list_arg)
+{
+  total_temp = total
+  list_p_hugo = list()
+  list_p_snyder = list()
+  list_p_vanallen = list()
+  list_OS = list()
+  count = 1
+  for (i in sort(unique(total$overall_survival)))
+  {
+  total_temp$group[which(as.numeric((total_temp$overall_survival)) >= i)] = "Responders"
+  total_temp$group[which(as.numeric((total_temp$overall_survival)) < i)] = "Nonresponders"
+  total_hugo = total_temp[which(total_temp$dataset == "mel1"),]
+  total_snyder = total_temp[which(total_temp$dataset == "mel2"),]
+  total_vanallen = total_temp[which(total_temp$dataset == "mel3"),]
+  if ((length(which(total_hugo$group == "Responders")) !=0)
+      && (length(which(total_hugo$group == "Nonresponders")) !=0)
+      && (length(which(total_snyder$group == "Responders")) !=0)
+      && (length(which(total_snyder$group == "Nonresponders")) !=0)
+      && (length(which(total_vanallen$group == "Responders")) !=0)
+      && (length(which(total_vanallen$group == "Nonresponders")) !=0))
+  {
+  list_p_hugo[count] = wilcox.test(total_hugo[which(total_hugo$group == "Responders"),]$nonsynonymous, 
+                              total_hugo[which(total_hugo$group == "Nonresponders"),]$nonsynonymous)$p.value
+  list_p_snyder[count] = wilcox.test(total_snyder[which(total_snyder$group == "Responders"),]$nonsynonymous, 
+                              total_snyder[which(total_snyder$group == "Nonresponders"),]$nonsynonymous)$p.value
+  list_p_vanallen[count] = wilcox.test(total_vanallen[which(total_vanallen$group == "Responders"),]$nonsynonymous, 
+                                total_vanallen[which(total_vanallen$group == "Nonresponders"),]$nonsynonymous)$p.value
+  
+  list_OS[count] = i
+  count = count + 1
+  }}
+  plot(as.numeric(list_OS), as.numeric(list_p_hugo), type = 'l', col = 'blue',
+       ylim = c(0, max(max(as.numeric(list_p_vanallen)), max(as.numeric(list_p_hugo)), max(as.numeric(list_p_snyder)))),
+       xlab = "Overall Survival cutoff chosen for classification",
+       ylab = "Mann Whitney test p-value")
+  lines(as.numeric(list_OS), as.numeric(list_p_snyder), type = 'l', col = 'red')
+  lines(as.numeric(list_OS), as.numeric(list_p_vanallen), type = 'l', col = 'green')
+  res = cbind(list_p_hugo, list_p_snyder, list_p_vanallen, list_OS, 
+        as.numeric(list_p_hugo)+as.numeric(list_p_snyder)+as.numeric(list_p_vanallen))
+  points(as.numeric(res[which.min(as.numeric(res[,5])),4]), 
+         as.numeric(list_p_snyder)[which.min(as.numeric(res[,5]))],
+         pch = "*")
+  points(as.numeric(res[which.min(as.numeric(res[,5])),4]), as.numeric(list_p_hugo)[which.min(as.numeric(res[,5]))],
+         pch = "*")
+  points(as.numeric(res[which.min(as.numeric(res[,5])),4]), as.numeric(list_p_vanallen)[which.min(as.numeric(res[,5]))],
+         pch = "*")
+  abline(h = 0.05)
+}
+  
+  
+  
 
 ############################
 # Permutation Mann-Whitney #
@@ -1152,7 +1212,7 @@ ROCcurves <- function(list_arg)
     legend_list[2] = paste("mel2 (n=64),", "AUC =",as.character(round(auc_snyder,3)))
     legend_list[3] = paste("mel3 (n=110),", "AUC =",as.character(round(auc_vanallen,3)))
 
-    legend(x=0.65,y=0.05,# places a legend at the appropriate place 
+    legend(x=0.65,y=0.15,# places a legend at the appropriate place 
            legend_list, # puts text in the legend
            pch = c(".",".", ".", ".",".","."), # gives the legend appropriate symbols (lines),
            lwd = c(1,1,1),
@@ -1191,8 +1251,67 @@ ROCcurves <- function(list_arg)
 }
 
 
+##################################
+# Generic plots for presentation #
+##################################
 
+h1 = rnorm(length(log(total_vanallen$nonsynonymous[which(total_vanallen$group == "Nonresponders")])),
+           mean=mean(log(total_vanallen$nonsynonymous[which(total_vanallen$group == "Nonresponders")])-1.2),
+           sd=sd(log(total_vanallen$nonsynonymous[which(total_vanallen$group == "Nonresponders")]))/1.2)
+h2 = rnorm(length(log(total_vanallen$nonsynonymous[which(total_vanallen$group == "Responders")])),
+           mean=mean(log(total_vanallen$nonsynonymous[which(total_vanallen$group == "Responders")])+1.2),
+           sd=sd(log(total_vanallen$nonsynonymous[which(total_vanallen$group == "Responders")]))/1.2)
+
+# Histogram Colored (blue and red)
+namefile = paste(path,"Syn_hist", ".tiff")
+tiff(namefile, width = 8, height = 6, units = 'in', res = 500)
+hist(h1, col=rgb(1,0,0,0.5), main="Overlapping Histogram", xlab="Log number of nonsynonymous mutations", 
+     add = F,
+     breaks = 20, xlim = c(0,10), ylim = c(0,12))
+hist(h2, col=rgb(0,0,1,0.5), add=T, breaks = 15)
+dev.off()
+
+namefile = paste(path,"Real_hist", ".tiff")
+tiff(namefile, width = 8, height = 6, units = 'in', res = 500)
+hist(log(total_vanallen$nonsynonymous[which(total_vanallen$group == "Nonresponders")]), 
+     add = F, col=rgb(1,0,0,0.5), breaks = 20,
+     xlim = c(0,10), ylim = c(0,12))
+hist(log(total_vanallen$nonsynonymous[which(total_vanallen$group == "Responders")]), 
+     add = T, col=rgb(0,0,1,0.5), breaks = 15)
+dev.off()
     
+
+correlatedValue = function(x, r){
+  r2 = r**2
+  e  = rnorm(length(x), mean=mean(log(total_vanallen$nonsynonymous)), 
+             sd=sd(log(total_vanallen$nonsynonymous)))
+  y  = r*x + e
+  return(y)
+}
+x = rnorm(length(log(total_vanallen$nonsynonymous[which(total_vanallen$group == "Nonresponders")])),
+          mean=mean(log(total_vanallen$nonsynonymous[which(total_vanallen$group == "Nonresponders")])-1.2),
+          sd=sd(log(total_vanallen$nonsynonymous[which(total_vanallen$group == "Nonresponders")]))/1.2)
+y = correlatedValue(x=x, r=.7)
+
+namefile = paste(path,"Syn_scatter_", ".tiff")
+tiff(namefile, width = 8, height = 6, units = 'in', res = 500)
+plot(x,y, pch = 16, col = 'grey')
+dev.off()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 #############################
 # Trimmed Survival Analysis #
@@ -1293,7 +1412,7 @@ if (params_tests[8] == T)
   dev.off()
   rm(over_string, under_string, total_Mut_over, mini.surv2)
   }
-}
+
 
 ####################
 # Survival and age #
@@ -1372,32 +1491,6 @@ if (params_tests[11]  == T)
   dev.off()
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 ##########################
 # Log odd ratio analysis #
 ##########################
@@ -1470,7 +1563,6 @@ if (params_tests[3] == T)
   rm(over_string, under_string, total_Mut_over, mini.surv2)
 }
 
-
 #####################
 # Permutation Tests #
 #####################
@@ -1510,39 +1602,6 @@ legend("topright", # places a legend at the appropriate place
 dev.off()
 rm(list_i ,list_Z, real_test, real_Z, pvalue_comp, overall_survival_shuffled, res, Z, pvalue)
 }
-
-
-
-
-
-
-
-
-
-
-
-
-#################
-# Log odd ratio #
-#################
-
-
-###########################
-# Stage severity analysis #
-###########################
-
-Done_string = paste(which_data, " done!")
-print(Done_string)
-
-
-
-
-
-
-
-
-
-
 
 #############################
 # Optimal cutpoint analysis #
