@@ -20,7 +20,7 @@ params_values[1] = 10000
 # Discriminant number of mutation to perform the survival analysis
 params_values[2] = 102
 # Redefine clinical classification
-redef = T
+redef = F
 # OS thresh for restratification
 os_thresh = 548
 
@@ -69,6 +69,8 @@ corr_plots(list(total_hugo, total_snyder, total_vanallen, total_rizvi))
 pitfalls(list(total_hugo, total_snyder, total_vanallen, total_rizvi))
 # ROC curves analysis
 ROCcurves(list(total_hugo, total_snyder, total_vanallen))
+# Threshold median analysis
+threshold_median(list(total_hugo, total_snyder, total_vanallen))
 
 ########################
 # Functions to compile #
@@ -987,16 +989,18 @@ threshold_median <- function(list_arg)
 { 
   for (data in list_arg)
   {   
+    which_data = data$dataset[1]
+    namefile = paste(path,"threshold_med", which_data, ".tiff")
+    tiff(namefile, width = 8, height = 4, units = 'in', res = 500)
     ## P_value vs threshold of mutations
     par(mfrow=c(1,1))
     list_i = list()
     list_deltaS = list()
-    mat_rand = matrix(0, nrow = length(unique(data$nonsynonymous)), ncol=100)
+    mat_rand = matrix(0, nrow = length(unique(data$nonsynonymous)), ncol=1000)
     j = 1
     try(
       for (i in sort(unique(data$nonsynonymous)))
       {
-        print(i)
         S1 <- median(data$overall_survival[data$nonsynonymous > i])
         S2 <- median(data$overall_survival[data$nonsynonymous <= i])
         S1[is.na(S1)] <- 0
@@ -1004,7 +1008,7 @@ threshold_median <- function(list_arg)
         deltaS = S1-S2
         list_i[j] = i
         list_deltaS[j] = deltaS
-        for (ii in 1:100)
+        for (ii in 1:1000)
         {
           S1_rand <- median(sample(data$overall_survival,length(data$overall_survival[data$nonsynonymous > i])))
           S2_rand <- median(sample(data$overall_survival,length(data$overall_survival[data$nonsynonymous <= i])))
@@ -1015,18 +1019,42 @@ threshold_median <- function(list_arg)
         }
         j = j+1
       })
-    #namefile3 = paste("Pvalue_VS_MutationThreshold_", which_data, ".jpg")
-    #jpeg(namefile3)
-    plot(list_i, list_deltaS, col = 'purple', cex =1, xlab = "Discriminant number of mutations",
-         ylab = "Delta S", main = which_data, pch = 16)
-    j= 1
-    for (i in sort(unique(data$nonsynonymous))) {
-      stripchart(as.numeric(mat_rand[j,]), at = i,vertical = TRUE, 
-                 method = "jitter", add = TRUE, pch = 16, cex = 0.5, col = alpha("black",0.1))
-      j = j+1
+    rand_S_lo = list()
+    rand_S_hi = list()
+    for (ii in 1:length(sort(unique(data$nonsynonymous))))
+    {
+    rand_S_lo[ii] = as.numeric(quantile(mat_rand[,ii], 0.05))
+    rand_S_hi[ii] = as.numeric(quantile(mat_rand[,ii], 0.95))
     }
-    abline(a=0.05, b=0, col = "purple")
-    rm(list_i, list_deltaS, j, res)
+    
+    plot(log(as.numeric(list_i)), list_deltaS, col = 'black', cex =1, xlab = "Discriminant number of mutations",
+         ylab = "Delta S", main = which_data, pch = 16,
+         xlim = c(min(log(as.numeric(list_i))), max(log(as.numeric(list_i)))),
+         ylim = c(min(as.numeric(list_deltaS), as.numeric(rand_S_lo)), 
+                  max(as.numeric(list_deltaS), as.numeric(rand_S_lo))))
+    #make polygon where coordinates start with lower limit and 
+    # then upper limit in reverse order
+    polygon(c(log(as.numeric(list_i)),rev(log(as.numeric(list_i)))),
+            c(as.numeric(rand_S_lo),rev(rand_S_hi)),
+            col = "grey75", border = FALSE)
+    lines(log(as.numeric(list_i)),list_deltaS, lwd = 2)
+    #add red lines on borders of polygon
+    lines(log(as.numeric(list_i)), rand_S_hi, col="red",lty=2)
+    lines(log(as.numeric(list_i)), as.numeric(rand_S_lo), col="red",lty=2)
+    points(log(as.numeric(list_i)), list_deltaS, col = 'black', cex =1, xlab = "Discriminant number of mutations",
+         ylab = "Delta S", pch = 16,
+         xlim = c(min(log(as.numeric(list_i))), max(log(as.numeric(list_i)))),
+         ylim = c(min(as.numeric(list_deltaS), as.numeric(rand_S_lo)), 
+                  max(as.numeric(list_deltaS), as.numeric(rand_S_lo))))
+    #j= 1
+    #for (i in sort(unique(data$nonsynonymous))) {
+    #  stripchart(as.numeric(mat_rand[j,]), at = i,vertical = TRUE, 
+    #             method = "jitter", add = TRUE, pch = 16, cex = 0.5, col = alpha("black",0.1))
+    #  j = j+1
+    #}
+    #abline(a=0.05, b=0, col = "purple")
+    #rm(list_i, list_deltaS, j)
+    print(which_data)
     dev.off()
   }
 }
@@ -1064,13 +1092,15 @@ perm_LR <- function(list_arg)
       mut_chosen_list[k] = mut_chosen
       k = k+1
     })
-  #namefile6 = paste("Permutation_Log-Rank_Multiple",which_data, ".jpg")
-  #jpeg(namefile6)
+  
+  namefile = paste(path,"Permutation_LR", which_data, ".tiff")
+  tiff(namefile, width = 8, height = 4, units = 'in', res = 500)
   plot(mut_chosen_list, pvalue_comp, xlim = c(min(total$nonsynonymous),max(total$nonsynonymous)), 
        ylim = c(min(pvalue_comp), max(pvalue_comp)), pch = ".",
        xlab = "Discriminant number of mutations", ylab = "p_value")
+  
   lines(mut_chosen_list, pvalue_comp)
-  #dev.off()
+  dev.off()
   rm(h,i, list_i ,list_Z, real_test, real_Z, pvalue_comp, mut_chosen_list, mut_chosen, overall_survival_shuffled, res, Z)
   }
 }
